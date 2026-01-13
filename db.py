@@ -4,6 +4,48 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "stok.db"
 
+def init_settings():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+def set_setting(key, value):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "REPLACE INTO settings (key, value) VALUES (?, ?)",
+        (key, value)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_setting(key, default=None):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT value FROM settings WHERE key=?",
+        (key,)
+    )
+
+    row = cur.fetchone()
+    conn.close()
+
+    return row[0] if row else default
+
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -25,7 +67,8 @@ def init_db():
             quantity INTEGER NOT NULL DEFAULT 0,
             location TEXT,
             note TEXT,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            expiry_date TEXT
         );
         """
     )
@@ -50,16 +93,27 @@ def init_db():
 
 # -------------------- PRODUCTS --------------------
 
-def add_product(code, name, category=None, quantity=0, location=None, note=None):
+def add_product(code, name, category=None, quantity=0, location=None, note=None, expiry_date=None):
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(
         """
-        INSERT INTO products (code, name, category, quantity, location, note, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (
+            code, name, category, quantity, location, note, created_at, expiry_date
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (code, name, category, quantity, location, note, datetime.now().isoformat()),
+        (
+            code,
+            name,
+            category,
+            quantity,
+            location,
+            note,
+            datetime.now().isoformat(),
+            expiry_date
+        ),
     )
 
     conn.commit()
@@ -83,34 +137,47 @@ def update_product(product_id, **fields):
     conn.close()
 
 
-def get_products(search=None):
+def get_products(search_text=None):
     conn = get_connection()
     cur = conn.cursor()
 
-    if search:
+    sort = get_setting("product_sort", "name_asc")
+
+    order_by = {
+        "name_asc": "name ASC",
+        "name_desc": "name DESC",
+    }.get(sort, "name ASC")
+
+    if search_text:
         cur.execute(
-            """
+            f"""
             SELECT * FROM products
-            WHERE code LIKE ? OR name LIKE ?
-            ORDER BY name
+            WHERE name LIKE ? OR code LIKE ?
+            ORDER BY {order_by}
             """,
-            (f"%{search}%", f"%{search}%"),
+            (f"%{search_text}%", f"%{search_text}%"),
         )
     else:
-        cur.execute("SELECT * FROM products ORDER BY name")
+        cur.execute(
+            f"""
+            SELECT * FROM products
+            ORDER BY {order_by}
+            """
+        )
 
     rows = cur.fetchall()
     conn.close()
     return rows
 
-
 def get_product(product_id):
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM products WHERE id=?", (product_id,))
+    cur.execute(
+        "SELECT * FROM products WHERE id=?",
+        (product_id,)
+    )
     row = cur.fetchone()
-
     conn.close()
     return row
 
