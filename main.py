@@ -19,11 +19,64 @@ if platform == "android":
 
 class ProductListScreen(Screen):
 
+    def __init__(self, **kwargs):
+        print(">>> ProductListScreen INIT")
+        super().__init__(**kwargs)
+
+        root = BoxLayout(orientation="vertical")
+        self.add_widget(root)
+
+        # 🔍 ARAMA
+        self.search = TextInput(
+            hint_text="Ürün ara (kod / isim)",
+            multiline=False,
+            size_hint_y=None,
+            height=45
+        )
+        self.search.bind(text=self.refresh)
+        root.add_widget(self.search)
+
+        # 🔠 SIRALA
+        sort_btn = Button(
+            text="Sırala",
+            size_hint_y=None,
+            height=40
+        )
+        sort_btn.bind(on_release=self.open_sort_menu)
+        root.add_widget(sort_btn)
+
+        # 📜 LİSTE
+        scroll = ScrollView(size_hint_y=1)
+        self.list_container = BoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            spacing=4,
+            padding=4
+        )
+        self.list_container.bind(
+            minimum_height=self.list_container.setter("height")
+        )
+        scroll.add_widget(self.list_container)
+        root.add_widget(scroll)
+
+        # ➕ YENİ ÜRÜN
+        add_btn = Button(
+            text="＋ Yeni Ürün",
+            size_hint_y=None,
+            height=50
+        )
+        root.add_widget(add_btn)
+
     def on_enter(self):
-        self.refresh()
+        if hasattr(self, "list_container"):
+            self.refresh()
+        else:
+            print("⚠ list_container yok, refresh atlandı")
 
     def refresh(self, *args):
-        self.layout.clear_widgets()
+        import db
+
+        self.list_container.clear_widgets()
 
         search_text = self.search.text.strip()
         products = db.get_products(search_text if search_text else None)
@@ -34,19 +87,18 @@ class ProductListScreen(Screen):
                 size_hint_y=None,
                 height=50
             )
-            btn.bind(on_release=lambda x, pid=p["id"]: self.open_product(pid))
-            self.layout.add_widget(btn)
+            btn.bind(
+                on_release=lambda x, pid=p["id"]: self.open_product(pid)
+            )
+            self.list_container.add_widget(btn)
 
     def open_product(self, product_id):
-        self.close_suggestions()
+        detail = self.manager.get_screen("detail")
+        detail.load_product(product_id)
         self.manager.current = "detail"
-        self.manager.get_screen("detail").load_product(product_id)
 
     def open_sort_menu(self, instance):
         from kivy.uix.popup import Popup
-        from kivy.uix.boxlayout import BoxLayout
-        from kivy.uix.button import Button
-        import db
 
         box = BoxLayout(orientation="vertical", spacing=5, padding=5)
 
@@ -55,10 +107,6 @@ class ProductListScreen(Screen):
             content=box,
             size_hint=(0.8, 0.5)
         )
-
-        Button(text="Tarih (Yeni → Eski)",
-           on_release=lambda x: self.set_sort("date_desc", popup)
-        ).add_widget = box.add_widget
 
         box.add_widget(Button(
             text="Tarih (Yeni → Eski)",
@@ -79,9 +127,7 @@ class ProductListScreen(Screen):
 
         popup.open()
 
-
     def set_sort(self, sort_key, popup):
-        import db
         db.set_setting("product_sort", sort_key)
         popup.dismiss()
         self.refresh()
@@ -176,7 +222,6 @@ class ProductListScreen(Screen):
         )
         sort_btn.bind(on_release=self.open_sort_menu)
 
-        top_bar.add_widget(sort_btn)
         root.add_widget(top_bar)
 
         self.search = TextInput(
@@ -249,7 +294,9 @@ class AddProductScreen(Screen):
             size_hint_y=None,
             height=45
         )
-        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
+        back_btn.bind(
+            on_release=lambda x: setattr(self.manager, "current", "list")
+        )
 
         layout.add_widget(self.code)
         layout.add_widget(self.product_name)
@@ -261,6 +308,19 @@ class AddProductScreen(Screen):
         layout.add_widget(back_btn)
 
         self.add_widget(layout)
+
+    # 🔹 EKRAN AÇILMADAN HEMEN ÖNCE ÇAĞRILIR
+    def on_pre_enter(self):
+        self.clear_form()
+
+    # 🔹 FORM TEMİZLEME
+    def clear_form(self):
+        self.code.text = ""
+        self.product_name.text = ""
+        self.category.text = ""
+        self.qty.text = ""
+        self.location.text = ""
+        self.note.text = ""
 
     def save(self, *args):
         code = self.code.text.strip()
@@ -280,7 +340,7 @@ class AddProductScreen(Screen):
             return
 
         try:
-            db.add_product(
+            product_id = db.add_product(
                 code=code,
                 name=name,
                 category=self.category.text.strip(),
@@ -289,28 +349,32 @@ class AddProductScreen(Screen):
                 note=self.note.text.strip(),
                 expiry_date=None
             )
+
+            # 🔥 İlk stok hareketi
+            db.add_movement(
+                product_id=product_id,
+                mtype="IN",
+                amount=qty,
+                description="İlk stok"
+            )
+
+            self.manager.current = "list"
+
         except Exception as e:
             self.show_error(str(e))
-            return
 
-        # Temizle
-        self.code.text = ""
-        self.product_name.text = ""
-        self.category.text = ""
-        self.qty.text = ""
-        self.location.text = ""
-        self.note.text = ""
-
-        self.manager.current = "list"
-
-    def show_error(self, msg):
+    def show_error(self, message):
         from kivy.uix.popup import Popup
+        from kivy.uix.label import Label
+
         Popup(
             title="Hata",
-            content=Label(text=msg),
-            size_hint=(0.8, 0.3)
+            content=Label(text=message),
+            size_hint=(0.8, 0.4)
         ).open()
 
+
+from kivy.uix.screenmanager import Screen
 
 
 class ProductDetailScreen(Screen):
@@ -321,13 +385,158 @@ class ProductDetailScreen(Screen):
 
         from kivy.uix.boxlayout import BoxLayout
         from kivy.uix.scrollview import ScrollView
+        from kivy.uix.button import Button
 
-        root = BoxLayout(
+        root = BoxLayout(orientation="vertical", padding=10, spacing=8)
+
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(size_hint_y=None, height=40, spacing=10)
+
+        btn_back = Button(text="← Geri")
+        btn_back.bind(on_release=self.go_back)
+
+        btn_moves = Button(text="Hareketler")
+        btn_moves.bind(on_release=self.open_movements)
+
+        top_bar.add_widget(btn_back)
+        top_bar.add_widget(btn_moves)
+        root.add_widget(top_bar)
+
+        # 📜 SCROLL ALANI
+        self.content = BoxLayout(
             orientation="vertical",
-            padding=10,
-            spacing=8
+            spacing=6,
+            size_hint_y=None
         )
+        self.content.bind(minimum_height=self.content.setter("height"))
 
+        scroll = ScrollView()
+        scroll.add_widget(self.content)
+
+        root.add_widget(scroll)
+        self.add_widget(root)
+
+    # 🔙 GERİ
+    def go_back(self, *args):
+        self.manager.current = "list"
+
+    # 🔁 HAREKETLER
+    def open_movements(self, *args):
+        self.manager.current = "movements"
+        self.manager.get_screen("movements").load(self.product_id)
+
+    # 📦 LOAD
+    def load_product(self, product_id):
+        self.product_id = product_id
+        self.refresh()
+
+    # 🔄 REFRESH
+    def refresh(self):
+        from kivy.uix.label import Label
+        from kivy.uix.button import Button
+        from datetime import datetime
+        import db
+
+        self.content.clear_widgets()
+
+        product = db.get_product(self.product_id)
+        if not product:
+            return
+
+        # BAŞLIK
+        self.content.add_widget(Label(
+            text="Ürün Detayı",
+            font_size=20,
+            bold=True,
+            size_hint_y=None,
+            height=40
+        ))
+
+        # ÜRÜN ADI
+        self.content.add_widget(Label(
+            text=product["name"],
+            font_size=18,
+            bold=True,
+            size_hint_y=None,
+            height=35
+        ))
+
+        # ✏️ DÜZENLE (FREE)
+        edit_btn = Button(
+            text="✏️ Düzenle",
+            size_hint_y=None,
+            height=45
+        )
+        edit_btn.bind(on_release=self.edit_product)
+        self.content.add_widget(edit_btn)
+
+        # STOK
+        self.content.add_widget(Label(
+            text=f"Mevcut stok: {product['quantity']}",
+            size_hint_y=None,
+            height=30
+        ))
+
+        # NOT
+        if product["note"]:
+            self.content.add_widget(Label(
+                text=f"Not: {product['note']}",
+                size_hint_y=None,
+                height=30
+            ))
+
+        # İLK EKLEME TARİHİ
+        created = datetime.fromisoformat(product["created_at"])
+        created_str = created.strftime("%d.%m.%Y %H:%M")
+
+        self.content.add_widget(Label(
+            text=f"İlk ekleme: {created_str}",
+            size_hint_y=None,
+            height=30,
+            font_size=14,
+            color=(0.7, 0.7, 0.7, 1)
+        ))
+
+        # SON KULLANMA TARİHİ (OPSİYONEL)
+        if product["expiry_date"]:
+            self.content.add_widget(Label(
+                text=f"Son kullanma: {product['expiry_date']}",
+                size_hint_y=None,
+                height=30,
+                font_size=14,
+                color=(0.9, 0.5, 0.3, 1)
+            ))
+
+    # ✏️ EDIT ACTION
+    def edit_product(self, *args):
+        edit_screen = self.manager.get_screen("product_edit")
+        edit_screen.load(self.product_id)
+        self.manager.current = "product_edit"
+
+
+class MovementScreen(Screen):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.scrollview import ScrollView
+        from kivy.uix.button import Button
+
+        self.product_id = None
+
+        root = BoxLayout(orientation="vertical", padding=10, spacing=8)
+
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(size_hint_y=None, height=40, spacing=10)
+
+        btn_back = Button(text="← Geri")
+        btn_back.bind(on_release=self.go_back)
+
+        top_bar.add_widget(btn_back)
+        root.add_widget(top_bar)   # 🔥 EKSİK OLAN SATIR BU
+
+        # 📜 SCROLL ALANI
         self.layout = BoxLayout(
             orientation="vertical",
             spacing=6,
@@ -341,148 +550,117 @@ class ProductDetailScreen(Screen):
         root.add_widget(scroll)
         self.add_widget(root)
 
-    def load_product(self, product_id):
-        self.product_id = product_id
-        self.refresh()
-
-    def refresh(self):
-        from datetime import datetime
-        from kivy.uix.label import Label
-        import db
-
-        self.layout.clear_widgets()
-
-        product = db.get_product(self.product_id)
-        if not product:
-            return
-
-        # Ürün adı
-        self.layout.add_widget(Label(
-            text=product["name"],
-            font_size=20,
-            size_hint_y=None,
-            height=40
-        ))
-
-        # İlk ekleme tarihi
-        if product["created_at"]:
-            created = datetime.fromisoformat(product["created_at"])
-            created_str = created.strftime("%d.%m.%Y %H:%M")
-
-            self.layout.add_widget(Label(
-                text=f"İlk ekleme: {created_str}",
-                size_hint_y=None,
-                height=30,
-                font_size=14,
-                color=(0.7, 0.7, 0.7, 1)
-            ))
-
-        # Son kullanma tarihi (opsiyonel)
-        if "expiry_date" in product.keys() and product["expiry_date"]:
-            self.layout.add_widget(Label(
-                text=f"Son kullanma: {product['expiry_date']}",
-                size_hint_y=None,
-                height=30,
-                font_size=14,
-                color=(0.9, 0.5, 0.3, 1)
-            ))
-
-        # Stok bilgisi
-        self.layout.add_widget(Label(
-            text=f"Mevcut Stok: {product['quantity']}",
-            size_hint_y=None,
-            height=30
-        ))
-
-        # Not
-        if product["note"]:
-            self.layout.add_widget(Label(
-                text=f"Not: {product['note']}",
-                size_hint_y=None,
-                height=40,
-                font_size=14
-            ))
-
-
-class MovementScreen(Screen):
+    def go_back(self, *args):
+        self.manager.current = "detail"
 
     def load(self, product_id):
         self.product_id = product_id
         self.refresh()
 
+    def toggle_date_order(self, *args):
+        if self.date_order == "DESC":
+            self.date_order = "ASC"
+        else:
+            self.date_order = "DESC"
+
+        self.refresh()
+
     def refresh(self):
+        from kivy.uix.label import Label
         from datetime import datetime
+        import db
 
         self.layout.clear_widgets()
+
+        if not self.product_id:
+            return
+
         moves = db.get_movements(self.product_id)
 
-        for m in moves:
-            color = (0, 0.7, 0, 1) if m["type"] == "IN" else (0.8, 0, 0, 1)
-            sign = "+" if m["type"] == "IN" else "-"
-
-            dt = datetime.fromisoformat(m["date"])
-            formatted_date = dt.strftime("%d.%m.%Y %H:%M")
-
-            lbl = Label(
-                text=f"{formatted_date}   {sign}{m['amount']}   {m['description'] or ''}",
-                color=color,
+        if not moves:
+            self.layout.add_widget(Label(
+                text="Hareket bulunamadı",
                 size_hint_y=None,
-                height=35,
-                halign="left",
-                valign="middle"
-            )
-            lbl.bind(size=lbl.setter("text_size"))
-            self.layout.add_widget(lbl)
+                height=30
+            ))
+            return
 
-        self.layout.add_widget(Button(
-            text="⬅ Geri",
-            size_hint_y=None,
-            height=45,
-            on_release=lambda x: setattr(self.manager, "current", "detail")
-        ))
+        for m in moves:
+            dt = datetime.fromisoformat(m["date"])
+            date_str = dt.strftime("%d.%m.%Y %H:%M")
 
+            sign = "+" if m["type"] == "IN" else "-"
+            color = (0, 0.7, 0, 1) if m["type"] == "IN" else (0.8, 0, 0, 1)
+
+            self.layout.add_widget(Label(
+                text=f"{date_str}   {sign}{m['amount']}   {m['description'] or ''}",
+                size_hint_y=None,
+                height=30,
+                color=color
+            ))
+
+class ProductEditScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        root = BoxLayout(
-            orientation="vertical",
-            padding=10,
-            spacing=5
-        )
+        self.product_id = None
 
-        scroll = ScrollView()
-        self.layout = GridLayout(
-            cols=1,
-            spacing=5,
-            size_hint_y=None
-        )
-        self.layout.bind(minimum_height=self.layout.setter("height"))
-        scroll.add_widget(self.layout)
+        layout = BoxLayout(orientation="vertical", padding=10, spacing=10)
 
-        root.add_widget(scroll)
-        self.add_widget(root)
+        # 🔙 GERİ BUTONU
+        back_btn = Button(
+            text="← Geri",
+            size_hint_y=None,
+            height=40
+        )
+        back_btn.bind(on_release=self.go_back)
+        layout.add_widget(back_btn)
+
+        # 📝 BAŞLIK
+        self.title = Label(
+            text="Ürün Düzenle",
+            font_size=20,
+            size_hint_y=None,
+            height=40
+        )
+        layout.add_widget(self.title)
+
+        self.add_widget(layout)
+
+    def load(self, product_id):
+        self.product_id = product_id
+
+    from kivy.app import App
+
+    def go_back(self, *args):
+        app = App.get_running_app()
+        app.root.current = "list"
 
 
 # -------------------- APP --------------------
+
 
 class StockApp(App):
     def build(self):
         import db
         db.init_settings()
-
-        # Veritabanını başlat
         db.init_db()
 
-        # Screen manager
         sm = ScreenManager(
             transition=SlideTransition()
         )
 
-        # Ekranlar (sıra önemli değil ama hepsi yukarıda tanımlı olmalı)
         sm.add_widget(ProductListScreen(name="list"))
         sm.add_widget(AddProductScreen(name="add"))
+
+        # 📦 Ürün Detay
         sm.add_widget(ProductDetailScreen(name="detail"))
+
+        # 🔁 Hareketler
         sm.add_widget(MovementScreen(name="movements"))
+
+        # ✏️ Ürün Düzenle
+        sm.add_widget(ProductEditScreen(name="product_edit"))
 
         return sm
 

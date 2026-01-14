@@ -116,8 +116,12 @@ def add_product(code, name, category=None, quantity=0, location=None, note=None,
         ),
     )
 
+    product_id = cur.lastrowid   # 🔥 KRİTİK SATIR
+
     conn.commit()
     conn.close()
+
+    return product_id            # 🔥 MUTLAKA
 
 
 def update_product(product_id, **fields):
@@ -146,6 +150,8 @@ def get_products(search_text=None):
     order_by = {
         "name_asc": "name ASC",
         "name_desc": "name DESC",
+        "date_desc": "datetime(created_at) DESC",  # 🔥 Yeni → Eski
+        "date_asc": "datetime(created_at) ASC",    # 🔥 Eski → Yeni
     }.get(sort, "name ASC")
 
     if search_text:
@@ -232,16 +238,33 @@ def _stock_move(product_id, amount, move_type, description=None):
     conn.commit()
     conn.close()
 
-
-def get_movements(product_id):
+def add_movement(product_id, mtype, amount, description=None):
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(
         """
-        SELECT * FROM stock_movements
+        INSERT INTO stock_movements
+        (product_id, type, amount, description, date)
+        VALUES (?, ?, ?, ?, datetime('now', '+3 hours'))
+        """,
+        (product_id, mtype, amount, description),
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_movements(product_id, order="DESC"):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        f"""
+        SELECT *
+        FROM stock_movements
         WHERE product_id=?
-        ORDER BY date DESC
+        ORDER BY datetime(date) {order}
         """,
         (product_id,),
     )
@@ -249,6 +272,9 @@ def get_movements(product_id):
     rows = cur.fetchall()
     conn.close()
     return rows
+
+
+
 def delete_product(product_id):
     conn = get_connection()
     cur = conn.cursor()
