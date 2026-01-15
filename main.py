@@ -16,6 +16,9 @@ if platform == "android":
     Window.softinput_mode = "below_target"
 
 
+# ===============================
+# 📋 PRODUCT LIST
+# ===============================
 class ProductListScreen(Screen):
 
     def __init__(self, **kwargs):
@@ -97,46 +100,32 @@ class ProductListScreen(Screen):
         self.refresh()
 
 
+# ===============================
+# ➕ ADD PRODUCT
+# ===============================
 class AddProductScreen(Screen):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        layout = BoxLayout(
-            orientation="vertical",
-            padding=10,
-            spacing=8
-        )
+        layout = BoxLayout(orientation="vertical", padding=10, spacing=8)
 
         self.code = TextInput(hint_text="Ürün Kodu")
         self.product_name = TextInput(hint_text="Ürün Adı")
-        self.qty = TextInput(
-            hint_text="Başlangıç Adedi",
-            input_filter="int"
-        )
-        self.note = TextInput(hint_text="Not")
-
-        save_btn = Button(
-            text="💾 Kaydet",
-            size_hint_y=None,
-            height=45
-        )
-        save_btn.bind(on_release=self.save)
-
-        back_btn = Button(
-            text="⬅ Geri",
-            size_hint_y=None,
-            height=45
-        )
-        back_btn.bind(
-            on_release=lambda x: setattr(self.manager, "current", "list")
-        )
         self.category_input = TextInput(
-            hint_text="Kategori (örn: Scooter, Servis, Adventure)",
+            hint_text="Kategori",
             multiline=False,
             size_hint_y=None,
             height=45
         )
+        self.qty = TextInput(hint_text="Başlangıç Adedi", input_filter="int")
+        self.note = TextInput(hint_text="Not")
+
+        save_btn = Button(text="💾 Kaydet", size_hint_y=None, height=45)
+        save_btn.bind(on_release=self.save)
+
+        back_btn = Button(text="⬅ Geri", size_hint_y=None, height=45)
+        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
 
         for w in [
             self.code,
@@ -160,11 +149,11 @@ class AddProductScreen(Screen):
     def save(self, *args):
         if not self.code.text or not self.product_name.text or not self.qty.text:
             return
-        category = self.category_input.text.strip()
+
         product_id = db.add_product(
             code=self.code.text.strip(),
             name=self.product_name.text.strip(),
-            category=category,
+            category=self.category_input.text.strip(),
             quantity=int(self.qty.text),
             note=self.note.text.strip()
         )
@@ -179,11 +168,36 @@ class AddProductScreen(Screen):
         self.manager.current = "list"
 
 
+# ===============================
+# 📄 PRODUCT DETAIL
+# ===============================
 class ProductDetailScreen(Screen):
+
+    def section_title(self, text):
+        return Label(
+            text=f"{text}:",
+            bold=True,
+            size_hint_y=None,
+            height=22,
+            halign="left",
+            valign="middle",
+            color=(0.75, 0.75, 0.75, 1),
+            text_size=(Window.width - 40, None)
+        )
+
+    def section_value(self, text, height=30, font_size=14):
+        return Label(
+            text=text,
+            font_size=font_size,
+            size_hint_y=None,
+            height=height,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
+        )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
         self.product_id = None
 
         self.root = BoxLayout(
@@ -204,152 +218,156 @@ class ProductDetailScreen(Screen):
         if not product:
             return
 
-        # 🔝 ÜST BAR (GERİ BUTONU)
-        top_bar = BoxLayout(
-            size_hint_y=None,
-            height=50
-        )
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(size_hint_y=None, height=50)
 
-        back_btn = Button(
-            text="← Ürün Listesine Dön",
-            size_hint_x=1
+        back_btn = Button(text="← Ürün Listesine Dön")
+        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
+
+        del_btn = Button(
+            text="🗑 Sil",
+            size_hint_x=None,
+            width=80,
+            background_normal="",
+            background_color=(0.8, 0, 0, 1)
         )
-        back_btn.bind(
-            on_release=lambda x: setattr(self.manager, "current", "list")
-        )
+        del_btn.bind(on_release=self.confirm_delete)
+
         top_bar.add_widget(back_btn)
+        top_bar.add_widget(del_btn)
         self.root.add_widget(top_bar)
+
         self.root.add_widget(Label(
-        text="Ürün Hakkında",
-        font_size=18,
-        size_hint_y=None,
-        height=35
+            text="Ürün Hakkında",
+            font_size=18,
+            size_hint_y=None,
+            height=35
         ))
 
-        # 📄 İÇERİK ALANI
+        # 📜 SCROLL
+        scroll = ScrollView()
         content = BoxLayout(
             orientation="vertical",
-            spacing=10,
+            spacing=8,
             size_hint_y=None
         )
         content.bind(minimum_height=content.setter("height"))
 
         # 🏷️ ÜRÜN ADI
-        content.add_widget(Label(
-            text="Ürün Adı",
-            bold=True,
-            size_hint_y=None,
-            height=22,
-            halign="left",
-            valign="middle",
-            text_size=(Window.width - 40, None)
-        ))
-        content.add_widget(Label(
-            text=product["name"],
-            font_size=20,
-            size_hint_y=None,
-            height=35,
-            halign="left",
-            valign="middle",
-            text_size=(Window.width - 40, None)
-        ))
-
+        content.add_widget(self.section_title("Ürün Adı"))
+        content.add_widget(
+    Label(
+        text=product["name"],
+        font_size=20,
+        bold=True,
+        size_hint_y=None,
+        height=36,
+        halign="left",
+        valign="middle",
+        text_size=(Window.width - 40, None)
+    )
+)
         # 🏷️ KATEGORİ
         if product["category"]:
-            content.add_widget(Label(
-                text="Kategori",
-                bold=True,
-                size_hint_y=None,
-                height=22,
-                halign="left",
-                valign="middle",
-                text_size=(Window.width - 40, None)
-            ))
-            content.add_widget(Label(
-               text=product["category"],
-               size_hint_y=None,
-               height=30,
-               halign="left",
-               valign="middle",
-               text_size=(Window.width - 40, None)
-           ))
+            content.add_widget(self.section_title("Kategori"))
+            content.add_widget(self.section_value(product["category"]))
 
-        # 🕒 İLK KAYIT TARİHİ
+        # 🕒 İLK KAYIT
         if product["created_at"]:
             dt = datetime.fromisoformat(product["created_at"])
-            formatted_date = dt.strftime("%d.%m.%Y %H:%M")
+            content.add_widget(self.section_title("İlk Kayıt"))
+            content.add_widget(
+                Label(
+                    text=dt.strftime("%d.%m.%Y %H:%M"),
+                    size_hint_y=None,
+                    height=30,
+                    halign="left",
+                    valign="middle",
+                    color=(0.2, 0.8, 0.2, 1),  # YEŞİL
+                    text_size=(Window.width - 40, None)
+                )
+            )
 
-            content.add_widget(Label(
-                text="İlk Kayıt",
-                bold=True,
-                size_hint_y=None,
-                height=22,
-                halign="left",
-                valign="middle",
-                text_size=(Window.width - 40, None)
-            ))
-            content.add_widget(Label(
-                text=formatted_date,
-                size_hint_y=None,
-                height=30,
-                halign="left",
-                valign="middle",
-                text_size=(Window.width - 40, None)
-            ))
+        # 📦 STOK
+        content.add_widget(self.section_title("Mevcut Stok"))
+        content.add_widget(
+            self.section_value(f"{product['quantity']} adet")
+        )
 
-
-        # 📦 MEVCUT STOK
-        content.add_widget(Label(
-            text="Mevcut Stok",
-            bold=True,
-            size_hint_y=None,
-            height=22,
-            halign="left",
-            valign="middle",
-            text_size=(Window.width - 40, None)
-        ))
-        content.add_widget(Label(
-            text=f"{product['quantity']} adet",
-            size_hint_y=None,
-            height=30,
-            halign="left",
-            valign="middle",
-            text_size=(Window.width - 40, None)
-        ))
-
-        # 📝 AÇIKLAMA
+        # 📝 NOT
         if product["note"]:
-            content.add_widget(Label(
-                text="Açıklama",
-                bold=True,
-                size_hint_y=None,
-                height=22,
-                halign="left",
-                valign="middle",
-                text_size=(Window.width - 40, None)
-            ))
-            content.add_widget(Label(
-                text=product["note"],
-                size_hint_y=None,
-                height=40,
-                halign="left",
-                valign="middle",
-                text_size=(Window.width - 40, None)
-            ))
+            content.add_widget(self.section_title("Not"))
+            content.add_widget(
+                self.section_value(product["note"], height=40)
+            )
 
-        # ✏️ DÜZENLE BUTONU (CONTENT'İN EN ALTINDA)
+        # ✏️ DÜZENLE
         content.add_widget(Button(
             text="✏️ Ürünü Düzenle",
             size_hint_y=None,
-            height=45,
-            on_release=lambda x: print("EDIT (sonra bağlanacak)")
-            ))
+            height=45
+        ))
 
-        # 📜 SCROLL (HER ZAMAN)
-        scroll = ScrollView()
         scroll.add_widget(content)
         self.root.add_widget(scroll)
 
+
+    def confirm_delete(self, instance):
+        from kivy.uix.popup import Popup
+
+        box = BoxLayout(orientation="vertical", spacing=10, padding=10)
+        box.add_widget(Label(
+            text="Bu ürünü silmek istiyor musunuz?\nBu işlem geri alınamaz."
+        ))
+
+        btns = BoxLayout(size_hint_y=None, height=40, spacing=10)
+        cancel = Button(text="İptal")
+        delete = Button(
+            text="Sil",
+            background_normal="",
+            background_color=(0.8, 0, 0, 1)
+        )
+
+        btns.add_widget(cancel)
+        btns.add_widget(delete)
+        box.add_widget(btns)
+
+        popup = Popup(
+            title="Onay",
+            content=box,
+            size_hint=(0.8, None),
+            height=220
+        )
+
+        cancel.bind(on_release=popup.dismiss)
+        delete.bind(on_release=lambda x: self.delete_and_exit(popup))
+        popup.open()
+
+    def delete_and_exit(self, popup):
+        from kivy.uix.popup import Popup
+
+        try:
+            db.delete_product(self.product_id)
+            popup.dismiss()
+            self.manager.current = "list"
+
+        except ValueError as e:
+            popup.dismiss()
+
+            Popup(
+                title="Silinemedi",
+                content=Label(
+                    text=str(e),
+                    halign="center"
+                ),
+                size_hint=(0.8, None),
+                height=180
+            ).open()
+
+
+# ===============================
+# 🚀 APP
+# ===============================
 class StockApp(App):
 
     def build(self):

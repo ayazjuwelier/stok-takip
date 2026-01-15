@@ -187,6 +187,25 @@ def get_product(product_id):
     conn.close()
     return row
 
+def delete_product(product_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Önce hareketler
+    cur.execute(
+        "DELETE FROM movements WHERE product_id = ?",
+        (product_id,)
+    )
+
+    # Sonra ürün
+    cur.execute(
+        "DELETE FROM products WHERE id = ?",
+        (product_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
 
 # -------------------- STOCK MOVEMENTS --------------------
 
