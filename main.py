@@ -56,6 +56,22 @@ class ProductListScreen(Screen):
 
         self.add_widget(root)
 
+        root.add_widget(Button(
+            text="ℹ️ Uygulama Hakkında",
+            size_hint_y=None,
+            height=40,
+            on_release=lambda x: setattr(self.manager, "current", "about")
+        ))
+
+        root.add_widget(Button(
+            text="🔐 Gizlilik Politikası",
+            size_hint_y=None,
+            height=40,
+            on_release=lambda x: setattr(self.manager, "current", "privacy")
+        ))
+
+
+
     def on_enter(self):
         self.refresh()
 
@@ -366,6 +382,156 @@ class ProductDetailScreen(Screen):
 
 
 # ===============================
+# ℹ️ ABOUT
+# ===============================
+class AboutScreen(Screen):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        root = BoxLayout(
+            orientation="vertical",
+            padding=10,
+            spacing=8
+        )
+
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(size_hint_y=None, height=50)
+
+        back_btn = Button(text="← Geri")
+        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
+
+        top_bar.add_widget(back_btn)
+        root.add_widget(top_bar)
+
+        # 📜 SCROLL
+        scroll = ScrollView()
+        content = BoxLayout(
+            orientation="vertical",
+            spacing=10,
+            size_hint_y=None
+        )
+        content.bind(minimum_height=content.setter("height"))
+
+        content.add_widget(Label(
+            text="Uygulama Hakkında",
+            font_size=20,
+            size_hint_y=None,
+            height=40
+        ))
+
+        content.add_widget(Label(
+            text=(
+                "Bu uygulama, küçük ve orta ölçekli işletmeler için "
+                "tasarlanmış offline-öncelikli bir stok takip uygulamasıdır.\n\n"
+                "Ürünlerinizi kolayca ekleyebilir, düzenleyebilir, "
+                "stok giriş ve çıkışlarını takip edebilirsiniz.\n\n"
+                "Uygulama internet bağlantısı gerektirmez. "
+                "Tüm veriler yalnızca cihazınızda saklanır.\n\n"
+                "Bu uygulama bir muhasebe programı değildir ve "
+                "herhangi bir ticari garanti veya yatırım danışmanlığı sunmaz."
+            ),
+            halign="left",
+            valign="top",
+            text_size=(Window.width - 40, None),
+            size_hint_y=None
+        ))
+
+        scroll.add_widget(content)
+        root.add_widget(scroll)
+
+        self.add_widget(root)
+
+# ===============================
+# 🔐 PRIVACY POLICY
+# ===============================
+class PrivacyScreen(Screen):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        root = BoxLayout(
+            orientation="vertical",
+            padding=10,
+            spacing=8
+        )
+
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(size_hint_y=None, height=50)
+        back_btn = Button(text="← Geri")
+        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
+        top_bar.add_widget(back_btn)
+        root.add_widget(top_bar)
+
+        # 📜 SCROLL
+        scroll = ScrollView()
+        content = BoxLayout(
+            orientation="vertical",
+            spacing=10,
+            size_hint_y=None
+        )
+        content.bind(minimum_height=content.setter("height"))
+
+        # 🔹 BAŞLIK
+        content.add_widget(Label(
+            text="Gizlilik Politikası",
+            font_size=20,
+            size_hint_y=None,
+            height=40
+        ))
+
+        # 🔹 METİN
+        policy_text = Label(
+            text=(
+                "Bu uygulama, kullanıcı gizliliğine önem verir.\n\n"
+
+                "🔹 Kişisel Veriler\n"
+                "Uygulama, kullanıcıdan herhangi bir kişisel veri talep etmez. "
+                "Ad, e-posta, telefon numarası, konum bilgisi veya cihaz tanımlayıcıları "
+                "toplanmaz ve saklanmaz.\n\n"
+
+                "🔹 Veri Saklama\n"
+                "Uygulama içinde girilen tüm veriler yalnızca kullanıcının cihazında "
+                "yerel olarak saklanır. Veriler geliştiriciye veya üçüncü taraflara "
+                "aktarılmaz.\n\n"
+
+                "🔹 İnternet ve Üçüncü Taraf Hizmetler\n"
+                "Uygulama internet bağlantısı gerektirmez ve herhangi bir üçüncü taraf "
+                "servis veya API ile veri paylaşımı yapmaz.\n\n"
+
+                "🔹 Veri Güvenliği ve Yedekleme\n"
+                "Verilerin güvenliği ve yedeklenmesi tamamen kullanıcının "
+                "sorumluluğundadır. Veri kaybı, cihaz arızası veya kullanıcı hatalarından "
+                "geliştirici sorumlu tutulamaz.\n\n"
+
+                "🔹 Sorumluluk Reddi\n"
+                "Uygulama \"olduğu gibi\" sunulmaktadır. Geliştirici, uygulamanın "
+                "kullanımından doğabilecek doğrudan veya dolaylı zararlardan, "
+                "veri kayıplarından veya iş kesintilerinden sorumlu değildir.\n\n"
+
+                "🔹 Değişiklikler\n"
+                "Bu gizlilik politikası gerektiğinde güncellenebilir. Güncellemeler "
+                "uygulama üzerinden yayınlandığı anda geçerli olur."
+            ),
+            halign="left",
+            valign="top",
+            text_size=(Window.width - 40, None),
+            size_hint_y=None
+        )
+
+        policy_text.bind(
+            texture_size=lambda instance, value: setattr(instance, "height", value[1])
+        )
+
+        content.add_widget(policy_text)
+
+        scroll.add_widget(content)
+        root.add_widget(scroll)
+
+        self.add_widget(root)
+
+
+# ===============================
 # 🚀 APP
 # ===============================
 class StockApp(App):
@@ -375,9 +541,13 @@ class StockApp(App):
         db.init_settings()
 
         sm = ScreenManager(transition=SlideTransition())
+
         sm.add_widget(ProductListScreen(name="list"))
         sm.add_widget(AddProductScreen(name="add"))
         sm.add_widget(ProductDetailScreen(name="detail"))
+        sm.add_widget(AboutScreen(name="about"))
+        sm.add_widget(PrivacyScreen(name="privacy"))
+
         sm.current = "list"
         return sm
 
