@@ -130,6 +130,12 @@ class AddProductScreen(Screen):
         back_btn.bind(
             on_release=lambda x: setattr(self.manager, "current", "list")
         )
+        self.category_input = TextInput(
+            hint_text="Kategori (örn: Scooter, Servis, Adventure)",
+            multiline=False,
+            size_hint_y=None,
+            height=45
+        )
 
         for w in [
             self.code,
@@ -152,10 +158,11 @@ class AddProductScreen(Screen):
     def save(self, *args):
         if not self.code.text or not self.product_name.text or not self.qty.text:
             return
-
+        category = self.category_input.text.strip()
         product_id = db.add_product(
             code=self.code.text.strip(),
             name=self.product_name.text.strip(),
+            category=category,
             quantity=int(self.qty.text),
             note=self.note.text.strip()
         )
@@ -227,25 +234,61 @@ class ProductDetailScreen(Screen):
 
         # 🏷️ ÜRÜN ADI
         content.add_widget(Label(
-            text=product["name"],
-            font_size=24,
+            text="Ürün Adı",
+            bold=True,
             size_hint_y=None,
-            height=45
+            height=22,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
         ))
-
-        # 📦 STOK DURUMU
         content.add_widget(Label(
-            text=f"Mevcut Stok: {product['quantity']} adet",
+            text=product["name"],
+            font_size=20,
             size_hint_y=None,
-            height=30
+            height=35,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
         ))
 
-        # 📝 AÇIKLAMA / NOT
+        # 📦 MEVCUT STOK
+        content.add_widget(Label(
+            text="Mevcut Stok",
+            bold=True,
+            size_hint_y=None,
+            height=22,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
+        ))
+        content.add_widget(Label(
+            text=f"{product['quantity']} adet",
+            size_hint_y=None,
+            height=30,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
+        ))
+
+        # 📝 AÇIKLAMA
         if product["note"]:
             content.add_widget(Label(
-                text=f"Açıklama: {product['note']}",
+                text="Açıklama",
+                bold=True,
                 size_hint_y=None,
-                height=30
+                height=22,
+                halign="left",
+                valign="middle",
+                text_size=(Window.width - 40, None)
+            ))
+            content.add_widget(Label(
+                text=product["note"],
+                size_hint_y=None,
+                height=40,
+                halign="left",
+                valign="middle",
+                text_size=(Window.width - 40, None)
             ))
 
         # ✏️ DÜZENLE BUTONU (CONTENT'İN EN ALTINDA)
