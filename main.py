@@ -26,28 +26,34 @@ class ProductListScreen(Screen):
 
         root = BoxLayout(
             orientation="vertical",
-            padding=10,
-            spacing=5
+            padding=8,
+            spacing=6
         )
 
         # 🔝 ÜST BAR
         top_bar = BoxLayout(
             size_hint_y=None,
-            height=40,
-            spacing=5
+            height=44,
+            spacing=6
         )
 
         menu_btn = Button(
             text="☰",
             size_hint_x=None,
-            width=50
+            width=44,
+            background_normal="",
+            background_color=(0.12, 0.12, 0.12, 1),
+            color=(1, 1, 1, 1)
         )
         menu_btn.bind(on_release=self.open_menu)
 
         sort_btn = Button(
-            text="⇅ Sırala",
+            text="⇅",
             size_hint_x=None,
-            width=100
+            width=44,
+            background_normal="",
+            background_color=(0.12, 0.12, 0.12, 1),
+            color=(1, 1, 1, 1)
         )
         sort_btn.bind(on_release=self.open_sort_menu)
 
@@ -55,12 +61,17 @@ class ProductListScreen(Screen):
         top_bar.add_widget(sort_btn)
         root.add_widget(top_bar)
 
-        # 🔍 ARAMA
+        # 🔍 ARAMA (DAHA NAZİK)
         self.search = TextInput(
             hint_text="Ürün ara (kod / isim)",
             multiline=False,
             size_hint_y=None,
-            height=40
+            height=38,
+            padding=[10, 10, 10, 10],
+            background_normal="",
+            background_color=(0.20, 0.20, 0.20, 1),
+            foreground_color=(1, 1, 1, 1),
+            hint_text_color=(0.6, 0.6, 0.6, 1)
         )
         self.search.bind(text=self.refresh)
         root.add_widget(self.search)
@@ -69,12 +80,11 @@ class ProductListScreen(Screen):
         scroll = ScrollView()
         self.layout = GridLayout(
             cols=1,
-            spacing=5,
+            spacing=6,
+            padding=[0, 6, 0, 6],
             size_hint_y=None
         )
-        self.layout.bind(
-            minimum_height=self.layout.setter("height")
-        )
+        self.layout.bind(minimum_height=self.layout.setter("height"))
         scroll.add_widget(self.layout)
         root.add_widget(scroll)
 
@@ -82,11 +92,136 @@ class ProductListScreen(Screen):
         root.add_widget(Button(
             text="➕ Yeni Ürün",
             size_hint_y=None,
-            height=50,
+            height=42,
+            background_normal="",
+            background_color=(0.18, 0.45, 0.18, 1),
+            color=(1, 1, 1, 1),
             on_release=lambda x: setattr(self.manager, "current", "add")
         ))
 
         self.add_widget(root)
+
+    # ===============================
+    # 🔁 LIFECYCLE
+    # ===============================
+    def on_enter(self):
+        self.refresh()
+
+    def refresh(self, *args):
+        self.layout.clear_widgets()
+        products = db.get_products(self.search.text.strip() or None)
+
+        for p in products:
+            btn = Button(
+                text=f"{p['name']}   ({p['quantity']})",
+                size_hint_y=None,
+                height=44,
+                background_normal="",
+                background_color=(0.18, 0.18, 0.18, 1),
+                color=(1, 1, 1, 1)
+            )
+            btn.bind(
+                on_release=lambda x, pid=p["id"]: self.open_product(pid)
+            )
+            self.layout.add_widget(btn)
+
+    def open_product(self, product_id):
+        detail = self.manager.get_screen("detail")
+        detail.load_product(product_id)
+        self.manager.current = "detail"
+
+    # ===============================
+    # 🔠 SIRALAMA
+    # ===============================
+    def open_sort_menu(self, instance):
+        from kivy.uix.popup import Popup
+
+        box = BoxLayout(
+            orientation="vertical",
+            spacing=6,
+            padding=6
+        )
+
+        popup = Popup(
+            title="Sıralama",
+            content=box,
+            size_hint=(0.8, None),
+            height=300,
+            separator_color=(0.25, 0.6, 0.8, 1)
+        )
+
+        box.add_widget(Button(text="Tarih (Yeni → Eski)",
+                              on_release=lambda x: self.set_sort("date_desc", popup)))
+        box.add_widget(Button(text="Tarih (Eski → Yeni)",
+                              on_release=lambda x: self.set_sort("date_asc", popup)))
+        box.add_widget(Button(text="A → Z",
+                              on_release=lambda x: self.set_sort("name_asc", popup)))
+        box.add_widget(Button(text="Z → A",
+                              on_release=lambda x: self.set_sort("name_desc", popup)))
+
+        popup.open()
+
+    def set_sort(self, sort_key, popup):
+        db.set_setting("product_sort", sort_key)
+        popup.dismiss()
+        self.refresh()
+
+    # ===============================
+    # ☰ HAMBURGER MENU
+    # ===============================
+    def open_menu(self, instance):
+        from kivy.uix.popup import Popup
+
+        box = BoxLayout(
+            orientation="vertical",
+            spacing=8,
+            padding=10
+        )
+
+        popup = Popup(
+            title="Menü",
+            content=box,
+            size_hint=(0.72, None),
+            height=220,
+            separator_color=(0.25, 0.6, 0.8, 1),
+            background_color=(0.08, 0.08, 0.08, 1)
+        )
+
+        box.add_widget(Button(
+            text="ℹ️ Uygulama Hakkında",
+            size_hint_y=None,
+            height=44,
+            background_normal="",
+            background_color=(0.18, 0.18, 0.18, 1),
+            color=(1, 1, 1, 1),
+            on_release=lambda x: self.open_and_close("about", popup)
+        ))
+
+        box.add_widget(Button(
+            text="🔐  Gizlilik Politikası",
+            size_hint_y=None,
+            height=44,
+            background_normal="",
+            background_color=(0.18, 0.18, 0.18, 1),
+            color=(1, 1, 1, 1),
+            on_release=lambda x: self.open_and_close("privacy", popup)
+        ))
+
+        box.add_widget(Button(
+            text="✖  Kapat",
+            size_hint_y=None,
+            height=38,
+            background_normal="",
+            background_color=(0.12, 0.12, 0.12, 1),
+            color=(0.8, 0.8, 0.8, 1),
+            on_release=popup.dismiss
+        ))
+
+        popup.open()
+
+    def open_and_close(self, screen_name, popup):
+        popup.dismiss()
+        self.manager.current = screen_name
 
     # ===============================
     # 🔁 LIFECYCLE
