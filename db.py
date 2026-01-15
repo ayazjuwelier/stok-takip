@@ -148,11 +148,11 @@ def get_products(search_text=None):
     sort = get_setting("product_sort", "name_asc")
 
     order_by = {
-        "name_asc": "name ASC",
-        "name_desc": "name DESC",
-        "date_desc": "datetime(created_at) DESC",  # 🔥 Yeni → Eski
-        "date_asc": "datetime(created_at) ASC",    # 🔥 Eski → Yeni
-    }.get(sort, "name ASC")
+        "name_asc": "LOWER(name) ASC",
+        "name_desc": "LOWER(name) DESC",
+        "date_desc": "datetime(created_at) DESC",
+        "date_asc": "datetime(created_at) ASC",
+    }.get(sort, "LOWER(name) ASC")
 
     if search_text:
         cur.execute(

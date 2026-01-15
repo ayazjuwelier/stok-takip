@@ -8,6 +8,7 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.core.window import Window
 from kivy.utils import platform
+from datetime import datetime
 
 import db
 
@@ -272,6 +273,29 @@ class ProductDetailScreen(Screen):
                valign="middle",
                text_size=(Window.width - 40, None)
            ))
+
+        # 🕒 İLK KAYIT TARİHİ
+        if product["created_at"]:
+            dt = datetime.fromisoformat(product["created_at"])
+            formatted_date = dt.strftime("%d.%m.%Y %H:%M")
+
+            content.add_widget(Label(
+                text="İlk Kayıt",
+                bold=True,
+                size_hint_y=None,
+                height=22,
+                halign="left",
+                valign="middle",
+                text_size=(Window.width - 40, None)
+            ))
+            content.add_widget(Label(
+                text=formatted_date,
+                size_hint_y=None,
+                height=30,
+                halign="left",
+                valign="middle",
+                text_size=(Window.width - 40, None)
+            ))
 
 
         # 📦 MEVCUT STOK
