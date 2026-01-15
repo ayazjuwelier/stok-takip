@@ -61,17 +61,19 @@ class ProductListScreen(Screen):
         top_bar.add_widget(sort_btn)
         root.add_widget(top_bar)
 
-        # 🔍 ARAMA (DAHA NAZİK)
+        # 🔍 ARAMA
         self.search = TextInput(
             hint_text="Ürün ara (kod / isim)",
             multiline=False,
             size_hint_y=None,
             height=38,
             padding=[10, 10, 10, 10],
+
+            # 🎨 ERİŞİLEBİLİR RENKLER
             background_normal="",
-            background_color=(0.20, 0.20, 0.20, 1),
-            foreground_color=(1, 1, 1, 1),
-            hint_text_color=(0.6, 0.6, 0.6, 1)
+            background_color=(0.28, 0.28, 0.28, 1),   # biraz daha açık zemin
+            foreground_color=(0.95, 0.95, 0.95, 1),   # yazılan metin
+            hint_text_color=(0.92, 0.92, 0.92, 1)         # Kivy karartsa bile okunur
         )
         self.search.bind(text=self.refresh)
         root.add_widget(self.search)
@@ -188,12 +190,9 @@ class ProductListScreen(Screen):
         )
 
         box.add_widget(Button(
-            text="ℹ️ Uygulama Hakkında",
+            text="ℹ️  Uygulama Hakkında",
             size_hint_y=None,
             height=44,
-            background_normal="",
-            background_color=(0.18, 0.18, 0.18, 1),
-            color=(1, 1, 1, 1),
             on_release=lambda x: self.open_and_close("about", popup)
         ))
 
@@ -201,9 +200,6 @@ class ProductListScreen(Screen):
             text="🔐  Gizlilik Politikası",
             size_hint_y=None,
             height=44,
-            background_normal="",
-            background_color=(0.18, 0.18, 0.18, 1),
-            color=(1, 1, 1, 1),
             on_release=lambda x: self.open_and_close("privacy", popup)
         ))
 
@@ -211,124 +207,6 @@ class ProductListScreen(Screen):
             text="✖  Kapat",
             size_hint_y=None,
             height=38,
-            background_normal="",
-            background_color=(0.12, 0.12, 0.12, 1),
-            color=(0.8, 0.8, 0.8, 1),
-            on_release=popup.dismiss
-        ))
-
-        popup.open()
-
-    def open_and_close(self, screen_name, popup):
-        popup.dismiss()
-        self.manager.current = screen_name
-
-    # ===============================
-    # 🔁 LIFECYCLE
-    # ===============================
-    def on_enter(self):
-        self.refresh()
-
-    def refresh(self, *args):
-        self.layout.clear_widgets()
-        products = db.get_products(self.search.text.strip() or None)
-
-        for p in products:
-            btn = Button(
-                text=f"{p['name']} ({p['quantity']})",
-                size_hint_y=None,
-                height=50
-            )
-            btn.bind(
-                on_release=lambda x, pid=p["id"]: self.open_product(pid)
-            )
-            self.layout.add_widget(btn)
-
-    def open_product(self, product_id):
-        detail = self.manager.get_screen("detail")
-        detail.load_product(product_id)
-        self.manager.current = "detail"
-
-    # ===============================
-    # 🔠 SIRALAMA
-    # ===============================
-    def open_sort_menu(self, instance):
-        from kivy.uix.popup import Popup
-
-        box = BoxLayout(
-            orientation="vertical",
-            spacing=5,
-            padding=5
-        )
-
-        popup = Popup(
-            title="Sıralama",
-            content=box,
-            size_hint=(0.8, None),
-            height=300
-        )
-
-        box.add_widget(Button(
-            text="Tarih (Yeni → Eski)",
-            on_release=lambda x: self.set_sort("date_desc", popup)
-        ))
-        box.add_widget(Button(
-            text="Tarih (Eski → Yeni)",
-            on_release=lambda x: self.set_sort("date_asc", popup)
-        ))
-        box.add_widget(Button(
-            text="A → Z",
-            on_release=lambda x: self.set_sort("name_asc", popup)
-        ))
-        box.add_widget(Button(
-            text="Z → A",
-            on_release=lambda x: self.set_sort("name_desc", popup)
-        ))
-
-        popup.open()
-
-    def set_sort(self, sort_key, popup):
-        db.set_setting("product_sort", sort_key)
-        popup.dismiss()
-        self.refresh()
-
-    # ===============================
-    # ☰ HAMBURGER MENU
-    # ===============================
-    def open_menu(self, instance):
-        from kivy.uix.popup import Popup
-
-        box = BoxLayout(
-            orientation="vertical",
-            spacing=5,
-            padding=5
-        )
-
-        popup = Popup(
-            title="Menü",
-            content=box,
-            size_hint=(0.7, None),
-            height=220
-        )
-
-        box.add_widget(Button(
-            text="ℹ️ Uygulama Hakkında",
-            size_hint_y=None,
-            height=45,
-            on_release=lambda x: self.open_and_close("about", popup)
-        ))
-
-        box.add_widget(Button(
-            text="🔐 Gizlilik Politikası",
-            size_hint_y=None,
-            height=45,
-            on_release=lambda x: self.open_and_close("privacy", popup)
-        ))
-
-        box.add_widget(Button(
-            text="❌ Kapat",
-            size_hint_y=None,
-            height=40,
             on_release=popup.dismiss
         ))
 

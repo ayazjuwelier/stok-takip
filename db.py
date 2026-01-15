@@ -213,6 +213,18 @@ def delete_product(product_id):
     finally:
         conn.close()
 
+def update_product(product_id, code, name, category, quantity, note):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE products
+        SET code = ?, name = ?, category = ?, quantity = ?, note = ?
+        WHERE id = ?
+    """, (code, name, category, quantity, note, product_id))
+
+    conn.commit()
+    conn.close()
 
 # -------------------- STOCK MOVEMENTS --------------------
 
