@@ -189,22 +189,29 @@ def get_product(product_id):
 
 def delete_product(product_id):
     conn = get_connection()
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    # Önce hareketler
-    cur.execute(
-        "DELETE FROM movements WHERE product_id = ?",
-        (product_id,)
-    )
+        # Stok hareketi var mı kontrol et
+        cur.execute(
+            "SELECT COUNT(*) FROM stock_movements WHERE product_id=?",
+            (product_id,)
+        )
+        if cur.fetchone()[0] > 0:
+            raise ValueError("Stok hareketi olan ürün silinemez")
 
-    # Sonra ürün
-    cur.execute(
-        "DELETE FROM products WHERE id = ?",
-        (product_id,)
-    )
+        # Ürünü sil
+        cur.execute(
+            "DELETE FROM products WHERE id=?",
+            (product_id,)
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 # -------------------- STOCK MOVEMENTS --------------------
