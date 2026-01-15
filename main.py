@@ -218,12 +218,16 @@ class ProductListScreen(Screen):
 
 
 # ===============================
-# ➕ ADD PRODUCT
+# ➕ ADD / EDIT PRODUCT
 # ===============================
 class AddProductScreen(Screen):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        # ✏️ EDIT STATE
+        self.edit_mode = False
+        self.edit_product_id = None
 
         root = BoxLayout(
             orientation="vertical",
@@ -235,9 +239,7 @@ class AddProductScreen(Screen):
         top_bar = BoxLayout(size_hint_y=None, height=40)
 
         back_btn = Button(text="← Geri")
-        back_btn.bind(
-            on_release=lambda x: setattr(self.manager, "current", "list")
-        )
+        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
 
         top_bar.add_widget(back_btn)
         root.add_widget(top_bar)
@@ -295,35 +297,77 @@ class AddProductScreen(Screen):
 
         self.add_widget(root)
 
-    def on_pre_enter(self):
-        # Ekran her açıldığında alanları temizle
-        self.code.text = ""
-        self.product_name.text = ""
-        self.category.text = ""
-        self.quantity.text = ""
-        self.note.text = ""
+    # ===============================
+    # ✏️ EDIT İÇİN FORMU DOLDUR
+    # ===============================
+    def load_for_edit(self, product_id):
+        product = db.get_product(product_id)
+        if not product:
+            return
 
+        self.edit_mode = True
+        self.edit_product_id = product_id
+
+        self.code.text = product["code"] or ""
+        self.product_name.text = product["name"] or ""
+        self.category.text = product["category"] or ""
+        self.quantity.text = str(product["quantity"])
+        self.note.text = product["note"] or ""
+
+    # ===============================
+    # 🔁 SCREEN AÇILIRKEN
+    # ===============================
+    def on_pre_enter(self):
+        if not self.edit_mode:
+            self.code.text = ""
+            self.product_name.text = ""
+            self.category.text = ""
+            self.quantity.text = ""
+            self.note.text = ""
+
+    # ===============================
+    # 💾 KAYDET (YENİ / EDIT)
+    # ===============================
     def save_product(self, instance):
         if not self.code.text or not self.product_name.text or not self.quantity.text:
-            return  # basit validation
+            return
 
-        product_id = db.add_product(
-            code=self.code.text.strip(),
-            name=self.product_name.text.strip(),
-            category=self.category.text.strip(),
-            quantity=int(self.quantity.text),
-            note=self.note.text.strip()
-        )
+        if self.edit_mode:
+            db.update_product(
+                product_id=self.edit_product_id,
+                code=self.code.text.strip(),
+                name=self.product_name.text.strip(),
+                category=self.category.text.strip(),
+                quantity=int(self.quantity.text),
+                note=self.note.text.strip()
+            )
 
-        # İlk stok hareketi
-        db.add_movement(
-            product_id=product_id,
-            mtype="IN",
-            amount=int(self.quantity.text),
-            description="İlk stok"
-        )
+            pid = self.edit_product_id
+            self.edit_mode = False
+            self.edit_product_id = None
 
-        self.manager.current = "list"
+            detail = self.manager.get_screen("detail")
+            detail.load_product(pid)
+            self.manager.current = "detail"
+
+        else:
+            product_id = db.add_product(
+                code=self.code.text.strip(),
+                name=self.product_name.text.strip(),
+                category=self.category.text.strip(),
+                quantity=int(self.quantity.text),
+                note=self.note.text.strip()
+            )
+
+            # İlk stok hareketi
+            db.add_movement(
+                product_id=product_id,
+                mtype="IN",
+                amount=int(self.quantity.text),
+                description="İlk stok"
+            )
+
+            self.manager.current = "list"
 
 
 # ===============================
@@ -364,6 +408,11 @@ class ProductDetailScreen(Screen):
             spacing=8
         )
         self.add_widget(self.root)
+
+    def open_edit(self):
+        add = self.manager.get_screen("add")
+        add.load_for_edit(self.product_id)
+        self.manager.current = "add"
 
     def load_product(self, product_id):
         self.product_id = product_id
@@ -411,20 +460,28 @@ class ProductDetailScreen(Screen):
         )
         content.bind(minimum_height=content.setter("height"))
 
+        # 🆔 ÜRÜN KODU
+        if product["code"]:
+            content.add_widget(self.section_title("Ürün Kodu"))
+            content.add_widget(
+                self.section_value(product["code"], font_size=16)
+            )
+
+
         # 🏷️ ÜRÜN ADI
         content.add_widget(self.section_title("Ürün Adı"))
         content.add_widget(
-    Label(
-        text=product["name"],
-        font_size=20,
-        bold=True,
-        size_hint_y=None,
-        height=36,
-        halign="left",
-        valign="middle",
-        text_size=(Window.width - 40, None)
-    )
-)
+           Label(
+               text=product["name"],
+               font_size=20,
+               bold=True,
+               size_hint_y=None,
+               height=36,
+               halign="left",
+               valign="middle",
+               text_size=(Window.width - 40, None)
+           )
+        )
         # 🏷️ KATEGORİ
         if product["category"]:
             content.add_widget(self.section_title("Kategori"))
@@ -463,8 +520,12 @@ class ProductDetailScreen(Screen):
         content.add_widget(Button(
             text="✏️ Ürünü Düzenle",
             size_hint_y=None,
-            height=45
-        ))
+            height=45,
+            background_normal="",
+            background_color=(0.2, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1),
+            on_release=lambda x: self.open_edit()
+))
 
         scroll.add_widget(content)
         self.root.add_widget(scroll)
