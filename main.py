@@ -140,6 +140,7 @@ class AddProductScreen(Screen):
         for w in [
             self.code,
             self.product_name,
+            self.category_input,
             self.qty,
             self.note,
             save_btn,
@@ -251,6 +252,27 @@ class ProductDetailScreen(Screen):
             valign="middle",
             text_size=(Window.width - 40, None)
         ))
+
+        # 🏷️ KATEGORİ
+        if product["category"]:
+            content.add_widget(Label(
+                text="Kategori",
+                bold=True,
+                size_hint_y=None,
+                height=22,
+                halign="left",
+                valign="middle",
+                text_size=(Window.width - 40, None)
+            ))
+            content.add_widget(Label(
+               text=product["category"],
+               size_hint_y=None,
+               height=30,
+               halign="left",
+               valign="middle",
+               text_size=(Window.width - 40, None)
+           ))
+
 
         # 📦 MEVCUT STOK
         content.add_widget(Label(
