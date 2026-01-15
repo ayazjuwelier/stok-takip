@@ -1,6 +1,7 @@
 from kivy.app import App
 from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
@@ -68,6 +69,8 @@ class ProductListScreen(Screen):
             self.layout.add_widget(btn)
 
     def open_product(self, product_id):
+        detail = self.manager.get_screen("detail")
+        detail.load_product(product_id)
         self.manager.current = "detail"
 
     def open_sort_menu(self, instance):
@@ -168,8 +171,95 @@ class AddProductScreen(Screen):
 
 
 class ProductDetailScreen(Screen):
-    pass
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.product_id = None
+
+        self.root = BoxLayout(
+            orientation="vertical",
+            padding=10,
+            spacing=8
+        )
+        self.add_widget(self.root)
+
+    def load_product(self, product_id):
+        self.product_id = product_id
+        self.refresh()
+
+    def refresh(self):
+        self.root.clear_widgets()
+
+        product = db.get_product(self.product_id)
+        if not product:
+            return
+
+        # 🔝 ÜST BAR (GERİ BUTONU)
+        top_bar = BoxLayout(
+            size_hint_y=None,
+            height=50
+        )
+
+        back_btn = Button(
+            text="← Ürün Listesine Dön",
+            size_hint_x=1
+        )
+        back_btn.bind(
+            on_release=lambda x: setattr(self.manager, "current", "list")
+        )
+        top_bar.add_widget(back_btn)
+        self.root.add_widget(top_bar)
+        self.root.add_widget(Label(
+        text="Ürün Hakkında",
+        font_size=18,
+        size_hint_y=None,
+        height=35
+        ))
+
+        # 📄 İÇERİK ALANI
+        content = BoxLayout(
+            orientation="vertical",
+            spacing=10,
+            size_hint_y=None
+        )
+        content.bind(minimum_height=content.setter("height"))
+
+        # 🏷️ ÜRÜN ADI
+        content.add_widget(Label(
+            text=product["name"],
+            font_size=24,
+            size_hint_y=None,
+            height=45
+        ))
+
+        # 📦 STOK DURUMU
+        content.add_widget(Label(
+            text=f"Mevcut Stok: {product['quantity']} adet",
+            size_hint_y=None,
+            height=30
+        ))
+
+        # 📝 AÇIKLAMA / NOT
+        if product["note"]:
+            content.add_widget(Label(
+                text=f"Açıklama: {product['note']}",
+                size_hint_y=None,
+                height=30
+            ))
+
+        # ✏️ DÜZENLE BUTONU (CONTENT'İN EN ALTINDA)
+        content.add_widget(Button(
+            text="✏️ Ürünü Düzenle",
+            size_hint_y=None,
+            height=45,
+            on_release=lambda x: print("EDIT (sonra bağlanacak)")
+            ))
+
+        # 📜 SCROLL (HER ZAMAN)
+        scroll = ScrollView()
+        scroll.add_widget(content)
+        self.root.add_widget(scroll)
 
 class StockApp(App):
 
