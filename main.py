@@ -24,14 +24,38 @@ class ProductListScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        root = BoxLayout(orientation="vertical", padding=10, spacing=5)
+        root = BoxLayout(
+            orientation="vertical",
+            padding=10,
+            spacing=5
+        )
 
-        top_bar = BoxLayout(size_hint_y=None, height=40)
-        sort_btn = Button(text="⇅ Sırala", size_hint_x=None, width=100)
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(
+            size_hint_y=None,
+            height=40,
+            spacing=5
+        )
+
+        menu_btn = Button(
+            text="☰",
+            size_hint_x=None,
+            width=50
+        )
+        menu_btn.bind(on_release=self.open_menu)
+
+        sort_btn = Button(
+            text="⇅ Sırala",
+            size_hint_x=None,
+            width=100
+        )
         sort_btn.bind(on_release=self.open_sort_menu)
+
+        top_bar.add_widget(menu_btn)
         top_bar.add_widget(sort_btn)
         root.add_widget(top_bar)
 
+        # 🔍 ARAMA
         self.search = TextInput(
             hint_text="Ürün ara (kod / isim)",
             multiline=False,
@@ -41,12 +65,20 @@ class ProductListScreen(Screen):
         self.search.bind(text=self.refresh)
         root.add_widget(self.search)
 
+        # 📜 LİSTE
         scroll = ScrollView()
-        self.layout = GridLayout(cols=1, spacing=5, size_hint_y=None)
-        self.layout.bind(minimum_height=self.layout.setter("height"))
+        self.layout = GridLayout(
+            cols=1,
+            spacing=5,
+            size_hint_y=None
+        )
+        self.layout.bind(
+            minimum_height=self.layout.setter("height")
+        )
         scroll.add_widget(self.layout)
         root.add_widget(scroll)
 
+        # ➕ YENİ ÜRÜN
         root.add_widget(Button(
             text="➕ Yeni Ürün",
             size_hint_y=None,
@@ -56,22 +88,9 @@ class ProductListScreen(Screen):
 
         self.add_widget(root)
 
-        root.add_widget(Button(
-            text="ℹ️ Uygulama Hakkında",
-            size_hint_y=None,
-            height=40,
-            on_release=lambda x: setattr(self.manager, "current", "about")
-        ))
-
-        root.add_widget(Button(
-            text="🔐 Gizlilik Politikası",
-            size_hint_y=None,
-            height=40,
-            on_release=lambda x: setattr(self.manager, "current", "privacy")
-        ))
-
-
-
+    # ===============================
+    # 🔁 LIFECYCLE
+    # ===============================
     def on_enter(self):
         self.refresh()
 
@@ -85,7 +104,9 @@ class ProductListScreen(Screen):
                 size_hint_y=None,
                 height=50
             )
-            btn.bind(on_release=lambda x, pid=p["id"]: self.open_product(pid))
+            btn.bind(
+                on_release=lambda x, pid=p["id"]: self.open_product(pid)
+            )
             self.layout.add_widget(btn)
 
     def open_product(self, product_id):
@@ -93,20 +114,41 @@ class ProductListScreen(Screen):
         detail.load_product(product_id)
         self.manager.current = "detail"
 
+    # ===============================
+    # 🔠 SIRALAMA
+    # ===============================
     def open_sort_menu(self, instance):
         from kivy.uix.popup import Popup
 
-        box = BoxLayout(orientation="vertical", spacing=5, padding=5)
-        popup = Popup(title="Sıralama", content=box, size_hint=(0.8, 0.5))
+        box = BoxLayout(
+            orientation="vertical",
+            spacing=5,
+            padding=5
+        )
 
-        box.add_widget(Button(text="Tarih (Yeni → Eski)",
-                              on_release=lambda x: self.set_sort("date_desc", popup)))
-        box.add_widget(Button(text="Tarih (Eski → Yeni)",
-                              on_release=lambda x: self.set_sort("date_asc", popup)))
-        box.add_widget(Button(text="A → Z",
-                              on_release=lambda x: self.set_sort("name_asc", popup)))
-        box.add_widget(Button(text="Z → A",
-                              on_release=lambda x: self.set_sort("name_desc", popup)))
+        popup = Popup(
+            title="Sıralama",
+            content=box,
+            size_hint=(0.8, None),
+            height=300
+        )
+
+        box.add_widget(Button(
+            text="Tarih (Yeni → Eski)",
+            on_release=lambda x: self.set_sort("date_desc", popup)
+        ))
+        box.add_widget(Button(
+            text="Tarih (Eski → Yeni)",
+            on_release=lambda x: self.set_sort("date_asc", popup)
+        ))
+        box.add_widget(Button(
+            text="A → Z",
+            on_release=lambda x: self.set_sort("name_asc", popup)
+        ))
+        box.add_widget(Button(
+            text="Z → A",
+            on_release=lambda x: self.set_sort("name_desc", popup)
+        ))
 
         popup.open()
 
@@ -114,6 +156,52 @@ class ProductListScreen(Screen):
         db.set_setting("product_sort", sort_key)
         popup.dismiss()
         self.refresh()
+
+    # ===============================
+    # ☰ HAMBURGER MENU
+    # ===============================
+    def open_menu(self, instance):
+        from kivy.uix.popup import Popup
+
+        box = BoxLayout(
+            orientation="vertical",
+            spacing=5,
+            padding=5
+        )
+
+        popup = Popup(
+            title="Menü",
+            content=box,
+            size_hint=(0.7, None),
+            height=220
+        )
+
+        box.add_widget(Button(
+            text="ℹ️ Uygulama Hakkında",
+            size_hint_y=None,
+            height=45,
+            on_release=lambda x: self.open_and_close("about", popup)
+        ))
+
+        box.add_widget(Button(
+            text="🔐 Gizlilik Politikası",
+            size_hint_y=None,
+            height=45,
+            on_release=lambda x: self.open_and_close("privacy", popup)
+        ))
+
+        box.add_widget(Button(
+            text="❌ Kapat",
+            size_hint_y=None,
+            height=40,
+            on_release=popup.dismiss
+        ))
+
+        popup.open()
+
+    def open_and_close(self, screen_name, popup):
+        popup.dismiss()
+        self.manager.current = screen_name
 
 
 # ===============================
@@ -124,60 +212,101 @@ class AddProductScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        layout = BoxLayout(orientation="vertical", padding=10, spacing=8)
+        root = BoxLayout(
+            orientation="vertical",
+            padding=10,
+            spacing=8
+        )
 
-        self.code = TextInput(hint_text="Ürün Kodu")
-        self.product_name = TextInput(hint_text="Ürün Adı")
-        self.category_input = TextInput(
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(size_hint_y=None, height=40)
+
+        back_btn = Button(text="← Geri")
+        back_btn.bind(
+            on_release=lambda x: setattr(self.manager, "current", "list")
+        )
+
+        top_bar.add_widget(back_btn)
+        root.add_widget(top_bar)
+
+        # 📄 FORM ALANI
+        self.code = TextInput(
+            hint_text="Ürün Kodu",
+            multiline=False,
+            size_hint_y=None,
+            height=40
+        )
+
+        self.product_name = TextInput(
+            hint_text="Ürün Adı",
+            multiline=False,
+            size_hint_y=None,
+            height=40
+        )
+
+        self.category = TextInput(
             hint_text="Kategori",
             multiline=False,
             size_hint_y=None,
+            height=40
+        )
+
+        self.quantity = TextInput(
+            hint_text="Başlangıç Adedi",
+            input_filter="int",
+            multiline=False,
+            size_hint_y=None,
+            height=40
+        )
+
+        self.note = TextInput(
+            hint_text="Not",
+            size_hint_y=None,
+            height=60
+        )
+
+        save_btn = Button(
+            text="💾 Kaydet",
+            size_hint_y=None,
             height=45
         )
-        self.qty = TextInput(hint_text="Başlangıç Adedi", input_filter="int")
-        self.note = TextInput(hint_text="Not")
+        save_btn.bind(on_release=self.save_product)
 
-        save_btn = Button(text="💾 Kaydet", size_hint_y=None, height=45)
-        save_btn.bind(on_release=self.save)
+        # FORMU ROOT'A EKLE
+        root.add_widget(self.code)
+        root.add_widget(self.product_name)
+        root.add_widget(self.category)
+        root.add_widget(self.quantity)
+        root.add_widget(self.note)
+        root.add_widget(save_btn)
 
-        back_btn = Button(text="⬅ Geri", size_hint_y=None, height=45)
-        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
-
-        for w in [
-            self.code,
-            self.product_name,
-            self.category_input,
-            self.qty,
-            self.note,
-            save_btn,
-            back_btn
-        ]:
-            layout.add_widget(w)
-
-        self.add_widget(layout)
+        self.add_widget(root)
 
     def on_pre_enter(self):
+        # Ekran her açıldığında alanları temizle
         self.code.text = ""
         self.product_name.text = ""
-        self.qty.text = ""
+        self.category.text = ""
+        self.quantity.text = ""
         self.note.text = ""
 
-    def save(self, *args):
-        if not self.code.text or not self.product_name.text or not self.qty.text:
-            return
+    def save_product(self, instance):
+        if not self.code.text or not self.product_name.text or not self.quantity.text:
+            return  # basit validation
 
         product_id = db.add_product(
             code=self.code.text.strip(),
             name=self.product_name.text.strip(),
-            category=self.category_input.text.strip(),
-            quantity=int(self.qty.text),
+            category=self.category.text.strip(),
+            quantity=int(self.quantity.text),
             note=self.note.text.strip()
         )
 
+        # İlk stok hareketi
         db.add_movement(
             product_id=product_id,
             mtype="IN",
-            amount=int(self.qty.text),
+            amount=int(self.quantity.text),
             description="İlk stok"
         )
 
