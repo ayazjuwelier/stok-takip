@@ -130,7 +130,32 @@ class ProductListScreen(Screen):
             background_color=(0.12, 0.12, 0.12, 1),
             color=(1, 1, 1, 1)
         )
-        sort_btn.bind(on_release=self.open_sort_menu)
+
+        # 🟢 STOK GİRİŞ
+        stock_in_btn = RoundedButton(
+            text="⬇️",
+            bg_color=(0.18, 0.55, 0.18, 1),
+            size_hint_x=None,
+            width=44
+        )
+
+        stock_in_btn.bind(
+            on_press=lambda x: setattr(x, "text", "⬇️ Giriş"),
+            on_release=lambda x: setattr(x, "text", "⬇️")
+        )
+
+        # 🔴 STOK ÇIKIŞ
+        stock_out_btn = RoundedButton(
+            text="⬆️",
+            bg_color=(0.75, 0.15, 0.15, 1),
+            size_hint_x=None,
+            width=44
+        )
+
+        stock_out_btn.bind(
+            on_press=lambda x: setattr(x, "text", "⬆️ Çıkış"),
+            on_release=lambda x: setattr(x, "text", "⬆️")
+        )
 
         # 🟢 STOK GİRİŞ
         stock_in_btn = RoundedButton(
@@ -166,6 +191,8 @@ class ProductListScreen(Screen):
 
         right_actions.add_widget(stock_in_btn)
         right_actions.add_widget(stock_out_btn)
+        top_bar.add_widget(stock_in_btn)
+        top_bar.add_widget(stock_out_btn)
 
         root.add_widget(top_bar)
 
