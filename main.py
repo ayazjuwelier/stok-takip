@@ -9,11 +9,48 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.core.window import Window
 from kivy.utils import platform
 from datetime import datetime
+from kivy.graphics import Color, RoundedRectangle
 
 import db
 
 if platform == "android":
     Window.softinput_mode = "below_target"
+
+# ===============================
+# 🔘 ROUNDED BUTTON (MODERN)
+# ===============================
+class RoundedButton(Button):
+    def __init__(self, **kwargs):
+        self.bg_color = kwargs.pop("bg_color", (0.2, 0.6, 0.2, 1))
+        super().__init__(**kwargs)
+
+        self.background_normal = ""
+        self.background_down = ""
+        self.background_color = (0, 0, 0, 0)
+
+        with self.canvas.before:
+            Color(0, 0, 0, 0.25)  # hafif gölge
+            self.shadow = RoundedRectangle(
+                pos=(self.x, self.y - 2),
+                size=self.size,
+                radius=[14]
+            )
+
+            Color(*self.bg_color)
+            self.rect = RoundedRectangle(
+                pos=self.pos,
+                size=self.size,
+                radius=[14]
+            )
+
+        self.bind(pos=self._update_rect, size=self._update_rect)
+
+    def _update_rect(self, *args):
+        self.rect.pos = self.pos
+        self.rect.size = self.size
+        self.shadow.pos = (self.x, self.y - 2)
+        self.shadow.size = self.size
+
 
 
 # ===============================
@@ -304,27 +341,30 @@ class AddProductScreen(Screen):
         # 🔘 BUTONLAR
         btn_box = BoxLayout(size_hint_y=None, height=45, spacing=8)
 
-        self.save_btn = Button(
+        self.save_btn = RoundedButton(
             text="💾 Kaydet",
-            background_normal="",
-            background_color=(0.18, 0.45, 0.18, 1),
-            color=(1, 1, 1, 1)
+            bg_color=(0.18,0.55,0.18,1),
+            color=(1, 1, 1, 1),
+            size_hint_y=None,
+            height=48
         )
         self.save_btn.bind(on_release=self.save_product)
 
-        self.back_btn = Button(
+        self.back_btn = RoundedButton(
             text="← Geri",
-            background_normal="",
-            background_color=(0.25, 0.25, 0.25, 1),
+            bg_color=(0.25,0.25,0.25,1),
             color=(1, 1, 1, 1),
+            size_hint_y=None,
+            height=48,
             on_release=lambda x: setattr(self.manager, "current", "list")
         )
 
-        self.delete_btn = Button(
+        self.delete_btn = RoundedButton(
             text="🗑 Sil",
-            background_normal="",
-            background_color=(0.8, 0.1, 0.1, 1),
+            bg_color=(0.75, 0.15, 0.15, 1),
             color=(1, 1, 1, 1),
+            size_hint_y=None,
+            height=48,
             on_release=self.confirm_delete
         )
 
