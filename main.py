@@ -179,18 +179,53 @@ class ProductListScreen(Screen):
         products = db.get_products(self.search.text.strip() or None)
 
         for p in products:
-            btn = Button(
-                text=f"{p['name']}   ({p['quantity']})",
+            card = BoxLayout(
+                orientation="vertical",
+                padding=12,
+                spacing=6,
                 size_hint_y=None,
-                height=44,
-                background_normal="",
-                background_color=(0.18, 0.18, 0.18, 1),
-                color=(1, 1, 1, 1)
+                height=80
             )
-            btn.bind(
-                on_release=lambda x, pid=p["id"]: self.open_product(pid)
+
+            with card.canvas.before:
+                Color(0.16, 0.16, 0.16, 1)
+                bg = RoundedRectangle(
+                    radius=[14],
+                    pos=card.pos,
+                    size=card.size
+                )
+
+            card.bind(
+                pos=lambda inst, val: setattr(bg, "pos", inst.pos),
+                size=lambda inst, val: setattr(bg, "size", inst.size)
             )
-            self.layout.add_widget(btn)
+
+            name_lbl = Label(
+                text=p["name"],
+                font_size=17,
+                bold=True,
+                size_hint_y=None,
+                height=26,
+                halign="left",
+                valign="middle"
+            )
+            name_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", val))
+
+            qty_lbl = Label(
+                text=f"Stok: {p['quantity']}",
+                font_size=14,
+                color=(0.7, 0.7, 0.7, 1),
+                size_hint_y=None,
+                height=22,
+                halign="left",
+                valign="middle"
+            )
+            qty_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", val))
+
+            card.add_widget(name_lbl)
+            card.add_widget(qty_lbl)
+
+            self.layout.add_widget(card)
 
     def open_product(self, product_id):
         detail = self.manager.get_screen("detail")
