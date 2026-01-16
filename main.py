@@ -583,19 +583,22 @@ class ProductDetailScreen(Screen):
                 self.section_value(product["note"], height=40)
             )
 
-        # ✏️ DÜZENLE
-        content.add_widget(Button(
+        # 📜 SCROLL
+        scroll.add_widget(content)
+        self.root.add_widget(scroll)
+
+        # ✏️ SABİT DÜZENLE BUTONU
+        edit_btn = Button(
             text="✏️ Ürünü Düzenle",
             size_hint_y=None,
             height=45,
             background_normal="",
             background_color=(0.2, 0.2, 0.2, 1),
-            color=(1, 1, 1, 1),
-            on_release=lambda x: self.open_edit()
-))
+            color=(1, 1, 1, 1)
+        )
+        edit_btn.bind(on_release=lambda x: self.open_edit())
 
-        scroll.add_widget(content)
-        self.root.add_widget(scroll)
+        self.root.add_widget(edit_btn)
 
 
     def confirm_delete(self, instance):
