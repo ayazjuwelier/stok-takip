@@ -235,15 +235,6 @@ class AddProductScreen(Screen):
             spacing=8
         )
 
-        # 🔝 ÜST BAR
-        top_bar = BoxLayout(size_hint_y=None, height=40)
-
-        back_btn = Button(text="← Geri")
-        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
-
-        top_bar.add_widget(back_btn)
-        root.add_widget(top_bar)
-
         # 📄 FORM ALANI
         self.code = TextInput(
             hint_text="Ürün Kodu",
