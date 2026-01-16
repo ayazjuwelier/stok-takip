@@ -280,20 +280,45 @@ class AddProductScreen(Screen):
             height=60
         )
 
-        save_btn = Button(
-            text="💾 Kaydet",
-            size_hint_y=None,
-            height=45
-        )
-        save_btn.bind(on_release=self.save_product)
-
-        # FORMU ROOT'A EKLE
+        # FORM
         root.add_widget(self.code)
         root.add_widget(self.product_name)
         root.add_widget(self.category)
         root.add_widget(self.quantity)
         root.add_widget(self.note)
-        root.add_widget(save_btn)
+
+        # 🔘 BUTONLAR
+        btn_box = BoxLayout(size_hint_y=None, height=45, spacing=8)
+
+        self.save_btn = Button(
+            text="💾 Kaydet",
+            background_normal="",
+            background_color=(0.18, 0.45, 0.18, 1),
+            color=(1, 1, 1, 1)
+        )
+        self.save_btn.bind(on_release=self.save_product)
+
+        self.back_btn = Button(
+            text="← Geri",
+            background_normal="",
+            background_color=(0.25, 0.25, 0.25, 1),
+            color=(1, 1, 1, 1),
+            on_release=lambda x: setattr(self.manager, "current", "list")
+        )
+
+        self.delete_btn = Button(
+            text="🗑 Sil",
+            background_normal="",
+            background_color=(0.8, 0.1, 0.1, 1),
+            color=(1, 1, 1, 1),
+            on_release=self.confirm_delete
+        )
+
+        btn_box.add_widget(self.save_btn)
+        btn_box.add_widget(self.back_btn)
+        btn_box.add_widget(self.delete_btn)
+
+        root.add_widget(btn_box)
 
         self.add_widget(root)
 
@@ -324,6 +349,11 @@ class AddProductScreen(Screen):
             self.category.text = ""
             self.quantity.text = ""
             self.note.text = ""
+            self.delete_btn.opacity = 0
+            self.delete_btn.disabled = True
+        else:
+            self.delete_btn.opacity = 1
+            self.delete_btn.disabled = False
 
     # ===============================
     # 💾 KAYDET (YENİ / EDIT)
@@ -368,6 +398,62 @@ class AddProductScreen(Screen):
             )
 
             self.manager.current = "list"
+
+    def confirm_delete(self, instance):
+        from kivy.uix.popup import Popup
+
+        box = BoxLayout(orientation="vertical", spacing=10, padding=10)
+        box.add_widget(Label(
+            text="Bu ürünü silmek istiyor musunuz?\nBu işlem geri alınamaz."
+        ))
+
+        btns = BoxLayout(size_hint_y=None, height=40, spacing=10)
+
+        cancel = Button(text="İptal")
+        delete = Button(
+            text="Sil",
+            background_normal="",
+            background_color=(0.8, 0, 0, 1)
+        )
+
+        btns.add_widget(cancel)
+        btns.add_widget(delete)
+        box.add_widget(btns)
+
+        popup = Popup(
+            title="Onay",
+            content=box,
+            size_hint=(0.8, None),
+            height=220
+        )
+
+        cancel.bind(on_release=popup.dismiss)
+        delete.bind(on_release=lambda x: self.delete_and_exit(popup))
+        popup.open()
+
+
+    def delete_and_exit(self, popup):
+        from kivy.uix.popup import Popup
+
+        try:
+            db.delete_product(self.edit_product_id)
+            popup.dismiss()
+            self.edit_mode = False
+            self.edit_product_id = None
+            self.manager.current = "list"
+
+        except ValueError as e:
+            popup.dismiss()
+
+            Popup(
+                title="Silinemedi",
+                content=Label(
+                    text=str(e),
+                    halign="center"
+                ),
+                size_hint=(0.8, None),
+                height=180
+            ).open()
 
 
 # ===============================
@@ -553,26 +639,11 @@ class ProductDetailScreen(Screen):
         popup.open()
 
     def delete_and_exit(self, popup):
-        from kivy.uix.popup import Popup
-
-        try:
-            db.delete_product(self.product_id)
-            popup.dismiss()
-            self.manager.current = "list"
-
-        except ValueError as e:
-            popup.dismiss()
-
-            Popup(
-                title="Silinemedi",
-                content=Label(
-                    text=str(e),
-                    halign="center"
-                ),
-                size_hint=(0.8, None),
-                height=180
-            ).open()
-
+        db.delete_product(self.edit_product_id)
+        popup.dismiss()
+        self.edit_mode = False
+        self.edit_product_id = None
+        self.manager.current = "list"
 
 # ===============================
 # ℹ️ ABOUT
