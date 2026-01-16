@@ -242,6 +242,22 @@ class AddProductScreen(Screen):
             spacing=8
         )
 
+        # 🧾 BAŞLIK
+        self.title_label = Label(
+            text="Yeni Ürün",
+            font_size=20,
+            size_hint_y=None,
+            height=36,
+            bold=True,
+            halign="left",
+            valign="middle"
+        )
+        self.title_label.bind(
+            size=lambda instance, value: setattr(instance, "text_size", value)
+        )
+        root.add_widget(self.title_label)
+
+
         # 📄 FORM ALANI
         self.code = TextInput(
             hint_text="Ürün Kodu",
@@ -328,9 +344,14 @@ class AddProductScreen(Screen):
         if not product:
             return
 
+        # ✏️ EDIT MODE
         self.edit_mode = True
         self.edit_product_id = product_id
 
+        # 🧾 BAŞLIK
+        self.title_label.text = "Ürünü Düzenle"
+
+        # 📄 FORM DOLDUR
         self.code.text = product["code"] or ""
         self.product_name.text = product["name"] or ""
         self.category.text = product["category"] or ""
@@ -800,6 +821,7 @@ class PrivacyScreen(Screen):
 # 🚀 APP
 # ===============================
 class StockApp(App):
+    title = "STOCKER"
 
     def build(self):
         db.init_db()
