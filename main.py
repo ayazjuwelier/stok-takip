@@ -311,6 +311,7 @@ class ProductListScreen(Screen):
         # Kart dışındaki dokunuşlar yukarı gitsin
         return False
 
+            self.layout.add_widget(card)
 
     def open_product(self, product_id):
         detail = self.manager.get_screen("detail")
