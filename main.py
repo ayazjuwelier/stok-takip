@@ -426,22 +426,12 @@ class ProductDetailScreen(Screen):
             return
 
         # 🔝 ÜST BAR
-        top_bar = BoxLayout(size_hint_y=None, height=50)
+        top_bar = BoxLayout(size_hint_y=None, height=44)
 
         back_btn = Button(text="← Ürün Listesine Dön")
         back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
 
-        del_btn = Button(
-            text="🗑 Sil",
-            size_hint_x=None,
-            width=80,
-            background_normal="",
-            background_color=(0.8, 0, 0, 1)
-        )
-        del_btn.bind(on_release=self.confirm_delete)
-
         top_bar.add_widget(back_btn)
-        top_bar.add_widget(del_btn)
         self.root.add_widget(top_bar)
 
         self.root.add_widget(Label(
