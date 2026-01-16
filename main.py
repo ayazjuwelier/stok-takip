@@ -98,7 +98,7 @@ class ProductListScreen(Screen):
             background_normal="",
             background_color=(0.18, 0.45, 0.18, 1),
             color=(1, 1, 1, 1),
-            on_release=lambda x: setattr(self.manager, "current", "add")
+            on_release=lambda x: self.open_add_product()
         ))
 
         self.add_widget(root)
@@ -131,6 +131,13 @@ class ProductListScreen(Screen):
         detail = self.manager.get_screen("detail")
         detail.load_product(product_id)
         self.manager.current = "detail"
+
+    def open_add_product(self):
+        add = self.manager.get_screen("add")
+        add.edit_mode = False
+        add.edit_product_id = None
+        self.manager.current = "add"
+
 
     # ===============================
     # 🔠 SIRALAMA
