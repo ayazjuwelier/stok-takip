@@ -470,6 +470,7 @@ class AddProductScreen(Screen):
             multiline=False,
             size_hint_y=None,
             height=42
+            max_text_length=10  # 👈 UI kilidi (max 1 milyar civarı)
         )
 
         self.note = TextInput(
