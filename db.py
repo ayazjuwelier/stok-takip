@@ -121,6 +121,9 @@ def add_product(code, name, category=None, quantity=0, location=None, note=None,
     conn.commit()
     conn.close()
 
+    # ULTRA: ürün oluşturma logu burada atılacak
+    # ultra_log_event(ULTRA_EVENT_PRODUCT_CREATE, payload)
+
     return product_id            # 🔥 MUTLAKA
 
 
@@ -133,12 +136,19 @@ def update_product(product_id, **fields):
     values.append(product_id)
 
     conn = get_connection()
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"UPDATE products SET {keys} WHERE id=?", values)
+        conn.commit()
 
-    cur.execute(f"UPDATE products SET {keys} WHERE id=?", values)
+        # ULTRA: ürün güncelleme logu burada atılacak
+        # ultra_log_event(ULTRA_EVENT_PRODUCT_UPDATE, payload)
 
-    conn.commit()
-    conn.close()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def get_products(search_text=None):
@@ -192,7 +202,6 @@ def delete_product(product_id):
     try:
         cur = conn.cursor()
 
-        # Stok hareketi var mı kontrol et
         cur.execute(
             "SELECT COUNT(*) FROM stock_movements WHERE product_id=?",
             (product_id,)
@@ -200,31 +209,21 @@ def delete_product(product_id):
         if cur.fetchone()[0] > 0:
             raise ValueError("Stok hareketi olan ürün silinemez")
 
-        # Ürünü sil
         cur.execute(
             "DELETE FROM products WHERE id=?",
             (product_id,)
         )
 
         conn.commit()
+
+        # ULTRA: ürün silme logu burada atılacak
+        # ultra_log_event(ULTRA_EVENT_PRODUCT_DELETE, payload)
+
     except Exception:
         conn.rollback()
         raise
     finally:
         conn.close()
-
-def update_product(product_id, code, name, category, quantity, note):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        UPDATE products
-        SET code = ?, name = ?, category = ?, quantity = ?, note = ?
-        WHERE id = ?
-    """, (code, name, category, quantity, note, product_id))
-
-    conn.commit()
-    conn.close()
 
 # -------------------- STOCK MOVEMENTS --------------------
 
@@ -241,40 +240,47 @@ def _stock_move(product_id, amount, move_type, description=None):
         raise ValueError("amount must be > 0")
 
     conn = get_connection()
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    # current quantity
-    cur.execute("SELECT quantity FROM products WHERE id=?", (product_id,))
-    row = cur.fetchone()
-    if not row:
+        cur.execute("SELECT quantity FROM products WHERE id=?", (product_id,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("product not found")
+
+        current_qty = row["quantity"]
+
+        if move_type == "OUT" and current_qty < amount:
+            raise ValueError("insufficient stock")
+
+        new_qty = current_qty + amount if move_type == "IN" else current_qty - amount
+
+        cur.execute(
+            "UPDATE products SET quantity=? WHERE id=?",
+            (new_qty, product_id),
+        )
+
+        cur.execute(
+            """
+            INSERT INTO stock_movements (product_id, type, amount, date, description)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (product_id, move_type, amount, datetime.now().isoformat(), description),
+        )
+
+        # ULTRA: stok hareketi logu burada atılacak
+        # ultra_log_event(
+        #     ULTRA_EVENT_STOCK_IN if move_type == "IN" else ULTRA_EVENT_STOCK_OUT,
+        #     payload
+        # )
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         conn.close()
-        raise ValueError("product not found")
-
-    current_qty = row["quantity"]
-
-    if move_type == "OUT" and current_qty < amount:
-        conn.close()
-        raise ValueError("insufficient stock")
-
-    new_qty = current_qty + amount if move_type == "IN" else current_qty - amount
-
-    # update product quantity
-    cur.execute(
-        "UPDATE products SET quantity=? WHERE id=?",
-        (new_qty, product_id),
-    )
-
-    # insert movement
-    cur.execute(
-        """
-        INSERT INTO stock_movements (product_id, type, amount, date, description)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (product_id, move_type, amount, datetime.now().isoformat(), description),
-    )
-
-    conn.commit()
-    conn.close()
 
 def add_movement(product_id, mtype, amount, description=None):
     conn = get_connection()
@@ -342,3 +348,47 @@ if __name__ == "__main__":
     init_db()
     print("DB initialized at", DB_PATH)
 
+# ===============================
+# ULTRA AUDIT LOG (PASİF TASLAK)
+# ===============================
+# Bu bölüm Ultra / Cloud sürümde aktif edilecek.
+# Şu an FREE ve PRO sürümleri etkilemez.
+#
+# Amaç:
+# - Ürün düzenleme geçmişi
+# - Stok giriş / çıkış logları
+# - Kullanıcı bazlı audit trail
+#
+# Not:
+# Buraya eklenecek kodlar şimdilik ÇAĞRILMAYACAK.
+
+
+# ULTRA AUDIT EVENT TYPES (PASİF)
+ULTRA_EVENT_PRODUCT_CREATE = "product_create"
+ULTRA_EVENT_PRODUCT_UPDATE = "product_update"
+ULTRA_EVENT_PRODUCT_DELETE = "product_delete"
+ULTRA_EVENT_STOCK_IN = "stock_in"
+ULTRA_EVENT_STOCK_OUT = "stock_out"
+
+
+# ULTRA AUDIT PAYLOAD ŞEMASI (PASİF)
+# {
+#   "entity": "product",
+#   "entity_id": 123,
+#   "user_id": 5,
+#   "action": "product_update",
+#   "changes": {
+#       "name": ["Eski", "Yeni"],
+#       "category": ["A", "B"],
+#       "quantity": [10, 15]
+#   },
+#   "timestamp": "2026-01-17T14:32:00"
+# }
+
+
+def ultra_log_event(event_type, payload):
+    """
+    ULTRA / CLOUD için audit log merkezi (PASİF).
+    Şimdilik çağrılmaz, DB’ye yazmaz.
+    """
+    pass

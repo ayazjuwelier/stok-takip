@@ -788,6 +788,144 @@ class PrivacyScreen(Screen):
 
         self.add_widget(root)
 
+# ===============================
+# ⚙️ SETTINGS (SKELETON)
+# ===============================
+class SettingsScreen(Screen):
+
+    def section_title(self, text):
+        return Label(
+            text=text,
+            size_hint_y=None,
+            height=32,
+            bold=True,
+            color=(0.8, 0.8, 0.8, 1),
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
+        )
+
+    def locked_item(self, title, subtitle):
+        box = BoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            height=56,
+            padding=[6, 4, 6, 4]
+        )
+
+        box.add_widget(Label(
+            text=f"🔒 {title}",
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None),
+            color=(0.7, 0.7, 0.7, 1)
+        ))
+
+        box.add_widget(Label(
+            text=subtitle,
+            font_size=12,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None),
+            color=(0.5, 0.5, 0.5, 1)
+        ))
+
+        return box
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        root = BoxLayout(
+            orientation="vertical",
+            padding=10,
+            spacing=8
+        )
+
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(size_hint_y=None, height=44)
+
+        back_btn = Button(
+            text="← Geri",
+            size_hint_x=None,
+            width=90
+        )
+        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
+
+        top_bar.add_widget(back_btn)
+        root.add_widget(top_bar)
+
+        root.add_widget(Label(
+            text="Ayarlar",
+            font_size=20,
+            size_hint_y=None,
+            height=36
+        ))
+
+        scroll = ScrollView()
+        content = BoxLayout(
+            orientation="vertical",
+            spacing=12,
+            size_hint_y=None
+        )
+        content.bind(minimum_height=content.setter("height"))
+
+        # ===============================
+        # 🟢 GENEL
+        # ===============================
+        content.add_widget(self.section_title("Genel"))
+
+        content.add_widget(Label(
+            text="Tema: Koyu",
+            size_hint_y=None,
+            height=28,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
+        ))
+
+        content.add_widget(Label(
+            text="Sürüm: 1.0.0",
+            size_hint_y=None,
+            height=28,
+            halign="left",
+            valign="middle",
+            text_size=(Window.width - 40, None)
+        ))
+
+        # ===============================
+        # 🔒 PRO (PASİF)
+        # ===============================
+        content.add_widget(self.section_title("PRO (Yakında)"))
+        content.add_widget(self.locked_item(
+            "Barkod ile Ürün Ekleme",
+            "Pro sürümde kullanılabilir"
+        ))
+        content.add_widget(self.locked_item(
+            "Otomatik Ürün Tanıma",
+            "Pro sürümde kullanılabilir"
+        ))
+
+        # ===============================
+        # 🔒 ULTRA (PASİF)
+        # ===============================
+        content.add_widget(self.section_title("ULTRA (Yakında)"))
+        content.add_widget(self.locked_item(
+            "Ürün Düzenleme Geçmişi",
+            "Dakika dakika audit log"
+        ))
+        content.add_widget(self.locked_item(
+            "Çoklu Kullanıcı",
+            "Yetki bazlı erişim"
+        ))
+        content.add_widget(self.locked_item(
+            "Şube Bazlı Stok",
+            "Depo / şube ayrımı"
+        ))
+
+        scroll.add_widget(content)
+        root.add_widget(scroll)
+        self.add_widget(root)
+
 
 # ===============================
 # 🚀 APP
