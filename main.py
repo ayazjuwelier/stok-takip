@@ -130,6 +130,7 @@ class ProductListScreen(Screen):
             background_color=(0.12, 0.12, 0.12, 1),
             color=(1, 1, 1, 1)
         )
+        sort_btn.bind(on_release=self.open_sort_menu)
 
         # 🟢 STOK GİRİŞ
         stock_in_btn = RoundedButton(
@@ -191,8 +192,6 @@ class ProductListScreen(Screen):
 
         right_actions.add_widget(stock_in_btn)
         right_actions.add_widget(stock_out_btn)
-        top_bar.add_widget(stock_in_btn)
-        top_bar.add_widget(stock_out_btn)
 
         root.add_widget(top_bar)
 
@@ -290,7 +289,7 @@ class ProductListScreen(Screen):
                 halign="left",
                 valign="middle"
             )
-            qty_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", val))
+            qty_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", inst.size))
 
             card.add_widget(name_lbl)
             card.add_widget(qty_lbl)
@@ -300,7 +299,7 @@ class ProductListScreen(Screen):
                     self.on_card_touch(inst, touch, pid)
             )
 
-            self.layout.add_widget(card)
+            self.layout.add_widget(card)  # 👈 👈 👈 KRİTİK SATIR
 
     def on_card_touch(self, inst, touch, product_id):
         if inst.collide_point(*touch.pos):
@@ -311,7 +310,6 @@ class ProductListScreen(Screen):
         # Kart dışındaki dokunuşlar yukarı gitsin
         return False
 
-            self.layout.add_widget(card)
 
     def open_product(self, product_id):
         detail = self.manager.get_screen("detail")
@@ -567,45 +565,90 @@ class AddProductScreen(Screen):
     # 💾 KAYDET (YENİ / EDIT)
     # ===============================
     def save_product(self, instance):
-        if not self.code.text or not self.product_name.text or not self.quantity.text:
+        from kivy.uix.popup import Popup
+        from kivy.uix.label import Label
+
+        print("SAVE ÇALIŞTI | edit_mode =", self.edit_mode)
+
+        # 🛑 ZORUNLU ALANLAR
+        if (
+            not self.code.text.strip()
+            or not self.product_name.text.strip()
+            or not self.quantity.text.strip()
+        ):
+            Popup(
+                title="Kaydedilemedi",
+                content=Label(text="Lütfen zorunlu alanları doldurun."),
+                size_hint=(0.7, None),
+                height=160
+            ).open()
             return
 
-        if self.edit_mode:
-            db.update_product(
-                product_id=self.edit_product_id,
-                code=self.code.text.strip(),
-                name=self.product_name.text.strip(),
-                category=self.category.text.strip(),
-                quantity=int(self.quantity.text),
-                note=self.note.text.strip()
-            )
+        # 🔐 QUANTITY PARSE
+        try:
+            qty = int(self.quantity.text.strip())
+        except ValueError:
+            Popup(
+                title="Hatalı Değer",
+                content=Label(text="Ürün adedi sayı olmalıdır."),
+                size_hint=(0.7, None),
+                height=160
+            ).open()
+            return
 
-            pid = self.edit_product_id
-            self.edit_mode = False
-            self.edit_product_id = None
+        # ❌ LIMIT KORUMA
+        if qty < 0 or qty > 1_000_000_000:
+            Popup(
+                title="Geçersiz Adet",
+                content=Label(text="Ürün adedi çok büyük."),
+                size_hint=(0.7, None),
+                height=160
+            ).open()
+            return
 
-            detail = self.manager.get_screen("detail")
-            detail.product_id = None   # 👈 çok önemli
-            detail.load_product(pid)
-            self.manager.current = "detail"
+        # 💾 DB KAYIT
+        try:
+            if self.edit_mode:
+                db.update_product(
+                    product_id=self.edit_product_id,
+                    code=self.code.text.strip(),
+                    name=self.product_name.text.strip(),
+                    category=self.category.text.strip(),
+                    quantity=qty,
+                    note=self.note.text.strip()
+                )
+                self.manager.current = "list"
+            else:
+                db.add_product(
+                    code=self.code.text.strip(),
+                    name=self.product_name.text.strip(),
+                    category=self.category.text.strip(),
+                    quantity=qty,
+                    note=self.note.text.strip()
+                )
+                self.manager.current = "list"
 
-        else:
-            product_id = db.add_product(
-                code=self.code.text.strip(),
-                name=self.product_name.text.strip(),
-                category=self.category.text.strip(),
-                quantity=int(self.quantity.text),
-                note=self.note.text.strip()
-            )
+        except Exception:
+            Popup(
+                title="Hata",
+                content=Label(text="Kayıt sırasında hata oluştu."),
+                size_hint=(0.7, None),
+                height=160
+            ).open()
 
-            self.manager.current = "list"
-
+    # ===============================
+    # 🗑️ SİL ONAY
+    # ===============================
     def confirm_delete(self, instance):
         from kivy.uix.popup import Popup
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.label import Label
+        from kivy.uix.button import Button
 
         box = BoxLayout(orientation="vertical", spacing=10, padding=10)
         box.add_widget(Label(
-            text="Bu ürünü silmek istiyor musunuz?\nBu işlem geri alınamaz."
+            text="Bu ürünü silmek istiyor musunuz?\nBu işlem geri alınamaz.",
+            halign="center"
         ))
 
         btns = BoxLayout(size_hint_y=None, height=40, spacing=10)
@@ -633,28 +676,94 @@ class AddProductScreen(Screen):
         popup.open()
 
 
+    # ===============================
+    # 🗑️ SİL VE ÇIK
+    # ===============================
     def delete_and_exit(self, popup):
-        from kivy.uix.popup import Popup
-
         try:
             db.delete_product(self.edit_product_id)
             popup.dismiss()
             self.edit_mode = False
             self.edit_product_id = None
             self.manager.current = "list"
-
-        except ValueError as e:
+        except Exception:
             popup.dismiss()
+            return
 
+
+        # -------------------------------
+        # 🛑 ZORUNLU ALANLAR (MVP: sessiz)
+        # -------------------------------
+        if (
+            not self.code.text.strip()
+            or not self.product_name.text.strip()
+            or not self.quantity.text.strip()
+        ):
             Popup(
-                title="Silinemedi",
-                content=Label(
-                    text=str(e),
-                    halign="center"
-                ),
-                size_hint=(0.8, None),
-                height=180
+                title="Kaydedilemedi",
+                content=Label(text="Lütfen zorunlu alanları kontrol edin."),
+                size_hint=(0.7, None),
+                height=160
             ).open()
+            return
+
+        # --------------------------------
+        # 🔐 QUANTITY PARSE (GÜVENLİ)
+        # --------------------------------
+        try:
+            qty = int(self.quantity.text.strip())
+        except ValueError:
+            # MVP: sessiz
+            # ULTRA: popup + log + cloud reject
+            return
+
+        # --------------------------------
+        # ❌ INTEGER OVERFLOW / MANTIK KORUMA
+        # --------------------------------
+        if qty < 0 or qty > 1_000_000_000:
+            # MVP: sessiz
+            # ULTRA: popup + log + cloud reject
+            return
+
+        # --------------------------------
+        # 💾 DB KAYIT
+        # --------------------------------
+        try:
+            if self.edit_mode:
+                db.update_product(
+                    product_id=self.edit_product_id,
+                    code=self.code.text.strip(),
+                    name=self.product_name.text.strip(),
+                    category=self.category.text.strip(),
+                    quantity=qty,
+                    note=self.note.text.strip()
+                )
+
+                pid = self.edit_product_id
+                self.edit_mode = False
+                self.edit_product_id = None
+
+                # 🔄 Detay ekranını tazele
+                detail = self.manager.get_screen("detail")
+                detail.product_id = None
+                detail.load_product(pid)
+                self.manager.current = "detail"
+
+            else:
+                db.add_product(
+                    code=self.code.text.strip(),
+                    name=self.product_name.text.strip(),
+                    category=self.category.text.strip(),
+                    quantity=qty,
+                    note=self.note.text.strip()
+                )
+
+                self.manager.current = "list"
+
+        except Exception:
+        # MVP: sessiz
+        # ULTRA: popup + hata raporu
+            return
 
 
 # ===============================
@@ -695,6 +804,37 @@ class ProductDetailScreen(Screen):
             spacing=8
         )
 
+        # 🔝 ÜST BAR
+        top_bar = BoxLayout(
+            size_hint_y=None,
+            height=48,
+            spacing=8
+        )
+
+        back_btn = Button(
+            text="← Geri",
+            size_hint_x=None,
+            width=90,
+            background_normal="",
+            background_color=(0.2, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1)
+        )
+        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
+
+        title = Label(
+            text="Ürün Detayı",
+            bold=True,
+            halign="left",
+            valign="middle"
+        )
+        title.bind(size=lambda inst, val: setattr(inst, "text_size", val))
+
+        top_bar.add_widget(back_btn)
+        top_bar.add_widget(title)
+
+        self.root.add_widget(top_bar)
+
+
         self.scroll = ScrollView()
 
         self.content = BoxLayout(
@@ -707,8 +847,21 @@ class ProductDetailScreen(Screen):
 
         self.scroll.add_widget(self.content)
         self.root.add_widget(self.scroll)
-        self.add_widget(self.root)
 
+        # ✏️ SABİT DÜZENLE BUTONU (TEK KEZ)
+        self.edit_btn = Button(
+            text="✏️ Ürünü Düzenle",
+            size_hint_y=None,
+            height=45,
+            background_normal="",
+            background_color=(0.2, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1)
+        )
+        self.edit_btn.bind(on_release=lambda x: self.open_edit())
+
+        self.root.add_widget(self.edit_btn)
+
+        self.add_widget(self.root)
 
     def open_edit(self):
         add = self.manager.get_screen("add")
@@ -799,21 +952,6 @@ class ProductDetailScreen(Screen):
             self.content.add_widget(
                 self.section_value(product["note"], height=40)
             )
-
-
-        # ✏️ SABİT DÜZENLE BUTONU
-        edit_btn = Button(
-            text="✏️ Ürünü Düzenle",
-            size_hint_y=None,
-            height=45,
-            background_normal="",
-            background_color=(0.2, 0.2, 0.2, 1),
-            color=(1, 1, 1, 1)
-        )
-        edit_btn.bind(on_release=lambda x: self.open_edit())
-
-        self.root.add_widget(edit_btn)
-
 
     def confirm_delete(self, instance):
         from kivy.uix.popup import Popup

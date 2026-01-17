@@ -96,43 +96,46 @@ def init_db():
 
 def add_product(code, name, category=None, quantity=0, location=None, note=None, expiry_date=None):
     conn = get_connection()
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    cur.execute(
-        """
-        INSERT INTO products (
-            code,
-            name,
-            category,
-            quantity,
-            location,
-            note,
-            created_at,
-            updated_at,
-            expiry_date
+        cur.execute(
+            """
+            INSERT INTO products (
+                code,
+                name,
+                category,
+                quantity,
+                location,
+                note,
+                created_at,
+                updated_at,
+                expiry_date
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                code,
+                name,
+                category,
+                quantity,
+                location,
+                note,
+                datetime.now().isoformat(),  # created_at
+                datetime.now().isoformat(),  # updated_at ✅ KALIYOR
+                expiry_date
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            code,
-            name,
-            category,
-            quantity,
-            location,
-            note,
-            datetime.now().isoformat(),  # created_at
-            datetime.now().isoformat(),  # updated_at  👈 KRİTİK SATIR
-            expiry_date
-        ),
-    )
 
-    product_id = cur.lastrowid
+        product_id = cur.lastrowid
+        conn.commit()
+        return product_id
 
-    conn.commit()
-    conn.close()
+    except sqlite3.IntegrityError:
+        raise ValueError("Bu ürün kodu zaten mevcut.")
 
-    return product_id
-
+    finally:
+        conn.close()
 
 def update_product(product_id, **fields):
     if not fields:
