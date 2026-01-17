@@ -106,9 +106,22 @@ class ProductListScreen(Screen):
 
         right_actions = BoxLayout(
             size_hint_x=None,
-            width=100,
+            width=150,
             spacing=6
         )
+
+        # ⚙️ AYARLAR
+        settings_btn = Button(
+            text="⚙️",
+            size_hint_x=None,
+            width=44,
+            background_normal="",
+            background_color=(0.12, 0.12, 0.12, 1),
+            color=(1, 1, 1, 1)
+        )
+        settings_btn.bind(on_release=lambda x: setattr(self.manager, "current", "settings"))
+
+        right_actions.add_widget(settings_btn)
 
         # ☰ MENU
         menu_btn = Button(
@@ -120,6 +133,17 @@ class ProductListScreen(Screen):
             color=(1, 1, 1, 1)
         )
         menu_btn.bind(on_release=self.open_menu)
+        # ⚙️ AYARLAR
+        settings_btn = Button(
+            text="⚙️",
+            size_hint_x=None,
+            width=44,
+            background_normal="",
+            background_color=(0.12, 0.12, 0.12, 1),
+            color=(1, 1, 1, 1)
+        )
+        settings_btn.bind(on_release=lambda x: setattr(self.manager, "current", "settings"))
+
 
         # ⇅ SIRALA
         sort_btn = Button(
@@ -469,8 +493,7 @@ class AddProductScreen(Screen):
             input_filter="int",
             multiline=False,
             size_hint_y=None,
-            height=42
-            max_text_length=10  # 👈 UI kilidi (max 1 milyar civarı)
+            height=42,
         )
 
         self.note = TextInput(
@@ -618,7 +641,6 @@ class AddProductScreen(Screen):
                     quantity=qty,
                     note=self.note.text.strip()
                 )
-                self.manager.current = "list"
             else:
                 db.add_product(
                     code=self.code.text.strip(),
@@ -627,7 +649,9 @@ class AddProductScreen(Screen):
                     quantity=qty,
                     note=self.note.text.strip()
                 )
-                self.manager.current = "list"
+
+            self.manager.current = "list"
+
 
         except Exception:
             Popup(
@@ -992,6 +1016,57 @@ class ProductDetailScreen(Screen):
         self.edit_product_id = None
         self.manager.current = "list"
 
+
+# ===============================
+# ⚙️ SETTINGS / AYARLAR
+# ===============================
+class SettingsScreen(Screen):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        root = BoxLayout(
+            orientation="vertical",
+            padding=12,
+            spacing=10
+        )
+
+        root.add_widget(Label(
+            text="Ultra Özellikler",
+            font_size=18,
+            bold=True,
+            size_hint_y=None,
+            height=36
+        ))
+
+        features = [
+            "🔒 Çoklu Cihaz",
+            "🔒 Şube Bazlı Stok",
+            "🔒 Otomatik Raporlar",
+            "🔒 Barkod Okutma",
+            "🔒 Kullanıcı Yetkileri"
+        ]
+
+        for f in features:
+            btn = Button(
+                text=f,
+                size_hint_y=None,
+                height=44,
+                background_normal="",
+                background_color=(0.2, 0.2, 0.2, 1),
+                color=(0.7, 0.7, 0.7, 1)
+            )
+            root.add_widget(btn)
+
+        root.add_widget(Button(
+            text="← Geri",
+            size_hint_y=None,
+            height=42,
+            on_release=lambda x: setattr(self.manager, "current", "list")
+        ))
+
+        self.add_widget(root)
+
 # ===============================
 # ℹ️ ABOUT
 # ===============================
@@ -1159,6 +1234,7 @@ class StockApp(App):
         sm.add_widget(ProductDetailScreen(name="detail"))
         sm.add_widget(AboutScreen(name="about"))
         sm.add_widget(PrivacyScreen(name="privacy"))
+        sm.add_widget(SettingsScreen(name="settings"))
 
         sm.current = "list"
         return sm
