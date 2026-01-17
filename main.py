@@ -52,6 +52,36 @@ class RoundedButton(Button):
         self.shadow.size = self.size
 
 
+# ===============================
+# 🔤 ROUNDED INPUT (MODERN)
+# ===============================
+class RoundedInput(TextInput):
+    def __init__(self, **kwargs):
+        self.bg_color = kwargs.pop("bg_color", (0.14, 0.14, 0.14, 1))
+        super().__init__(**kwargs)
+
+        self.background_normal = ""
+        self.background_active = ""
+        self.background_color = (0, 0, 0, 0)
+        self.foreground_color = (0.95, 0.95, 0.95, 1)
+        self.hint_text_color = (0.7, 0.7, 0.7, 1)
+        self.padding = [14, 14, 14, 14]
+        self.cursor_color = (0.2, 0.8, 0.2, 1)
+
+        with self.canvas.before:
+            Color(*self.bg_color)
+            self.rect = RoundedRectangle(
+                pos=self.pos,
+                size=self.size,
+                radius=[16]
+            )
+
+        self.bind(pos=self._update_rect, size=self._update_rect)
+
+    def _update_rect(self, *args):
+        self.rect.pos = self.pos
+        self.rect.size = self.size
+
 
 # ===============================
 # 📋 PRODUCT LIST
@@ -74,6 +104,13 @@ class ProductListScreen(Screen):
             spacing=6
         )
 
+        right_actions = BoxLayout(
+            size_hint_x=None,
+            width=100,
+            spacing=6
+        )
+
+        # ☰ MENU
         menu_btn = Button(
             text="☰",
             size_hint_x=None,
@@ -84,6 +121,7 @@ class ProductListScreen(Screen):
         )
         menu_btn.bind(on_release=self.open_menu)
 
+        # ⇅ SIRALA
         sort_btn = Button(
             text="⇅",
             size_hint_x=None,
@@ -92,6 +130,7 @@ class ProductListScreen(Screen):
             background_color=(0.12, 0.12, 0.12, 1),
             color=(1, 1, 1, 1)
         )
+        sort_btn.bind(on_release=self.open_sort_menu)
 
         # 🟢 STOK GİRİŞ
         stock_in_btn = RoundedButton(
@@ -119,10 +158,14 @@ class ProductListScreen(Screen):
             on_release=lambda x: setattr(x, "text", "⬆️")
         )
 
+        # 📦 LAYOUT'A EKLEME
         top_bar.add_widget(menu_btn)
         top_bar.add_widget(sort_btn)
-        top_bar.add_widget(stock_in_btn)
-        top_bar.add_widget(stock_out_btn)
+        top_bar.add_widget(BoxLayout())  # spacer
+        top_bar.add_widget(right_actions)
+
+        right_actions.add_widget(stock_in_btn)
+        right_actions.add_widget(stock_out_btn)
 
         root.add_widget(top_bar)
 
@@ -225,7 +268,22 @@ class ProductListScreen(Screen):
             card.add_widget(name_lbl)
             card.add_widget(qty_lbl)
 
+            card.bind(
+                on_touch_down=lambda inst, touch, pid=p["id"]:
+                    self.on_card_touch(inst, touch, pid)
+            )
+
             self.layout.add_widget(card)
+
+    def on_card_touch(self, inst, touch, product_id):
+        if inst.collide_point(*touch.pos):
+            # SADECE kart alanında yakala
+            self.open_product(product_id)
+            return True
+
+        # Kart dışındaki dokunuşlar yukarı gitsin
+        return False
+
 
     def open_product(self, product_id):
         detail = self.manager.get_screen("detail")
@@ -363,21 +421,21 @@ class AddProductScreen(Screen):
             hint_text="Ürün Kodu",
             multiline=False,
             size_hint_y=None,
-            height=40
+            height=42
         )
 
         self.product_name = TextInput(
             hint_text="Ürün Adı",
             multiline=False,
             size_hint_y=None,
-            height=40
+            height=42
         )
 
         self.category = TextInput(
             hint_text="Kategori",
             multiline=False,
             size_hint_y=None,
-            height=40
+            height=42
         )
 
         self.quantity = TextInput(
@@ -385,13 +443,13 @@ class AddProductScreen(Screen):
             input_filter="int",
             multiline=False,
             size_hint_y=None,
-            height=40
+            height=42
         )
 
         self.note = TextInput(
             hint_text="Not",
             size_hint_y=None,
-            height=60
+            height=70
         )
 
         # FORM
@@ -499,6 +557,7 @@ class AddProductScreen(Screen):
             self.edit_product_id = None
 
             detail = self.manager.get_screen("detail")
+            detail.product_id = None   # 👈 çok önemli
             detail.load_product(pid)
             self.manager.current = "detail"
 
@@ -509,14 +568,6 @@ class AddProductScreen(Screen):
                 category=self.category.text.strip(),
                 quantity=int(self.quantity.text),
                 note=self.note.text.strip()
-            )
-
-            # İlk stok hareketi
-            db.add_movement(
-                product_id=product_id,
-                mtype="IN",
-                amount=int(self.quantity.text),
-                description="İlk stok"
             )
 
             self.manager.current = "list"
@@ -615,7 +666,21 @@ class ProductDetailScreen(Screen):
             padding=10,
             spacing=8
         )
+
+        self.scroll = ScrollView()
+
+        self.content = BoxLayout(
+            orientation="vertical",
+            spacing=8,
+            size_hint_y=None
+        )
+
+        self.content.bind(minimum_height=self.content.setter("height"))
+
+        self.scroll.add_widget(self.content)
+        self.root.add_widget(self.scroll)
         self.add_widget(self.root)
+
 
     def open_edit(self):
         add = self.manager.get_screen("add")
@@ -627,48 +692,26 @@ class ProductDetailScreen(Screen):
         self.refresh()
 
     def refresh(self):
-        self.root.clear_widgets()
+        self.content.clear_widgets()
 
         product = db.get_product(self.product_id)
         if not product:
             return
 
         # 🔝 ÜST BAR
-        top_bar = BoxLayout(size_hint_y=None, height=44)
 
-        back_btn = Button(text="← Ürün Listesine Dön")
-        back_btn.bind(on_release=lambda x: setattr(self.manager, "current", "list"))
-
-        top_bar.add_widget(back_btn)
-        self.root.add_widget(top_bar)
-
-        self.root.add_widget(Label(
-            text="Ürün Hakkında",
-            font_size=18,
-            size_hint_y=None,
-            height=35
-        ))
-
-        # 📜 SCROLL
-        scroll = ScrollView()
-        content = BoxLayout(
-            orientation="vertical",
-            spacing=8,
-            size_hint_y=None
-        )
-        content.bind(minimum_height=content.setter("height"))
 
         # 🆔 ÜRÜN KODU
         if product["code"]:
-            content.add_widget(self.section_title("Ürün Kodu"))
-            content.add_widget(
+            self.content.add_widget(self.section_title("Ürün Kodu"))
+            self.content.add_widget(
                 self.section_value(product["code"], font_size=16)
             )
 
 
         # 🏷️ ÜRÜN ADI
-        content.add_widget(self.section_title("Ürün Adı"))
-        content.add_widget(
+        self.content.add_widget(self.section_title("Ürün Adı"))
+        self.content.add_widget(
            Label(
                text=product["name"],
                font_size=20,
@@ -682,14 +725,14 @@ class ProductDetailScreen(Screen):
         )
         # 🏷️ KATEGORİ
         if product["category"]:
-            content.add_widget(self.section_title("Kategori"))
-            content.add_widget(self.section_value(product["category"]))
+            self.content.add_widget(self.section_title("Kategori"))
+            self.content.add_widget(self.section_value(product["category"]))
 
         # 🕒 İLK KAYIT
         if product["created_at"]:
             dt = datetime.fromisoformat(product["created_at"])
-            content.add_widget(self.section_title("İlk Kayıt"))
-            content.add_widget(
+            self.content.add_widget(self.section_title("İlk Kayıt"))
+            self.content.add_widget(
                 Label(
                     text=dt.strftime("%d.%m.%Y %H:%M"),
                     size_hint_y=None,
@@ -701,22 +744,34 @@ class ProductDetailScreen(Screen):
                 )
             )
 
+        # 🟡 SON GÜNCELLEME
+        if product["updated_at"]:
+            dt = datetime.fromisoformat(product["updated_at"])
+            self.content.add_widget(self.section_title("Son Güncelleme"))
+            self.content.add_widget(
+                Label(
+                    text=dt.strftime("%d.%m.%Y %H:%M"),
+                    size_hint_y=None,
+                    height=30,
+                    color=(0.9, 0.7, 0.2, 1),
+                    text_size=(Window.width - 40, None)
+                )
+            )
+
+
         # 📦 STOK
-        content.add_widget(self.section_title("Mevcut Stok"))
-        content.add_widget(
+        self.content.add_widget(self.section_title("Mevcut Stok"))
+        self.content.add_widget(
             self.section_value(f"{product['quantity']} adet")
         )
 
         # 📝 NOT
         if product["note"]:
-            content.add_widget(self.section_title("Not"))
-            content.add_widget(
+            self.content.add_widget(self.section_title("Not"))
+            self.content.add_widget(
                 self.section_value(product["note"], height=40)
             )
 
-        # 📜 SCROLL
-        scroll.add_widget(content)
-        self.root.add_widget(scroll)
 
         # ✏️ SABİT DÜZENLE BUTONU
         edit_btn = Button(

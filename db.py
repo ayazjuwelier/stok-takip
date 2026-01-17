@@ -68,6 +68,7 @@ def init_db():
             location TEXT,
             note TEXT,
             created_at TEXT NOT NULL,
+            updated_at TEXT,
             expiry_date TEXT
         );
         """
@@ -100,9 +101,17 @@ def add_product(code, name, category=None, quantity=0, location=None, note=None,
     cur.execute(
         """
         INSERT INTO products (
-            code, name, category, quantity, location, note, created_at, expiry_date
+            code,
+            name,
+            category,
+            quantity,
+            location,
+            note,
+            created_at,
+            updated_at,
+            expiry_date
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             code,
@@ -111,22 +120,26 @@ def add_product(code, name, category=None, quantity=0, location=None, note=None,
             quantity,
             location,
             note,
-            datetime.now().isoformat(),
+            datetime.now().isoformat(),  # created_at
+            datetime.now().isoformat(),  # updated_at  👈 KRİTİK SATIR
             expiry_date
         ),
     )
 
-    product_id = cur.lastrowid   # 🔥 KRİTİK SATIR
+    product_id = cur.lastrowid
 
     conn.commit()
     conn.close()
 
-    return product_id            # 🔥 MUTLAKA
+    return product_id
 
 
 def update_product(product_id, **fields):
     if not fields:
         return
+
+    from datetime import datetime
+    fields["updated_at"] = datetime.now().isoformat()
 
     keys = ", ".join([f"{k}=?" for k in fields.keys()])
     values = list(fields.values())
@@ -280,6 +293,7 @@ def add_movement(product_id, mtype, amount, description=None):
     conn = get_connection()
     cur = conn.cursor()
 
+    # 1️⃣ Stok hareketini kaydet
     cur.execute(
         """
         INSERT INTO stock_movements
@@ -289,9 +303,30 @@ def add_movement(product_id, mtype, amount, description=None):
         (product_id, mtype, amount, description),
     )
 
+    # 2️⃣ Ürün stok + updated_at güncelle
+    if mtype == "IN":
+        cur.execute(
+            """
+            UPDATE products
+            SET quantity = quantity + ?,
+                updated_at = datetime('now', '+3 hours')
+            WHERE id=?
+            """,
+            (amount, product_id)
+        )
+    elif mtype == "OUT":
+        cur.execute(
+            """
+            UPDATE products
+            SET quantity = quantity - ?,
+                updated_at = datetime('now', '+3 hours')
+            WHERE id=?
+            """,
+            (amount, product_id)
+        )
+
     conn.commit()
     conn.close()
-
 
 def get_movements(product_id, order="DESC"):
     conn = get_connection()
