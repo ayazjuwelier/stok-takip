@@ -137,26 +137,6 @@ def add_product(code, name, category=None, quantity=0, location=None, note=None,
     finally:
         conn.close()
 
-def update_product(product_id, **fields):
-    if not fields:
-        return
-
-    from datetime import datetime
-    fields["updated_at"] = datetime.now().isoformat()
-
-    keys = ", ".join([f"{k}=?" for k in fields.keys()])
-    values = list(fields.values())
-    values.append(product_id)
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute(f"UPDATE products SET {keys} WHERE id=?", values)
-
-    conn.commit()
-    conn.close()
-
-
 def get_products(search_text=None):
     conn = get_connection()
     cur = conn.cursor()
@@ -235,9 +215,23 @@ def update_product(product_id, code, name, category, quantity, note):
 
     cur.execute("""
         UPDATE products
-        SET code = ?, name = ?, category = ?, quantity = ?, note = ?
+        SET
+            code = ?,
+            name = ?,
+            category = ?,
+            quantity = ?,
+            note = ?,
+            updated_at = ?
         WHERE id = ?
-    """, (code, name, category, quantity, note, product_id))
+    """, (
+        code,
+        name,
+        category,
+        quantity,
+        note,
+        datetime.now().isoformat(),
+        product_id
+    ))
 
     conn.commit()
     conn.close()
