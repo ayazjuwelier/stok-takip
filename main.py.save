@@ -271,29 +271,6 @@ class ProductListScreen(Screen):
         self.layout.clear_widgets()
         products = db.get_products(self.search.text.strip() or None)
 
-        for p in products:
-            card = BoxLayout(
-                orientation="horizontal",
-                padding=14,
-                spacing=10,
-                size_hint_y=None,
-                height=76
-            )
-
-            card.canvas.before.clear()
-
-            with card.canvas.before:
-                Color(0.16, 0.16, 0.16, 1)
-                bg = RoundedRectangle(
-                    radius=[16],
-                    pos=card.pos,
-                    size=card.size
-                )
-
-            card.bind(
-                pos=lambda inst, val: setattr(bg, "pos", inst.pos),
-                size=lambda inst, val: setattr(bg, "size", inst.size)
-            )
 
             # 📦 SOL: isim + kod
             left = BoxLayout(orientation="vertical", spacing=4)
@@ -330,30 +307,27 @@ class ProductListScreen(Screen):
                 padding=6
             )
 
-            stock_lbl = Label(
-                text=f"{p['quantity']}",
-                size_hint=(None, None),
-                size=(56, 32),
-                font_size=16,
-                bold=True,
-                halign="center",
-                valign="middle",
-                color=(1, 1, 1, 1)
-            )
-            stock_lbl.bind(size=stock_lbl.setter("text_size"))
-
-            with stock_lbl.canvas.before:
-                Color(0.22, 0.22, 0.22, 1)
-                badge_bg = RoundedRectangle(
-                    radius=[16],
-                    pos=stock_lbl.pos,
-                    size=stock_lbl.size
+            with stock_box.canvas.before:
+                Color(0.2, 0.2, 0.2, 1)
+                stock_bg = RoundedRectangle(
+                    radius=[12],
+                    pos=stock_box.pos,
+                    size=stock_box.size
                 )
 
-            stock_lbl.bind(
-                pos=lambda i, v: setattr(badge_bg, "pos", i.pos),
-                size=lambda i, v: setattr(badge_bg, "size", i.size)
+            stock_box.bind(
+                pos=lambda inst, val: setattr(stock_bg, "pos", inst.pos),
+                size=lambda inst, val: setattr(stock_bg, "size", inst.size)
             )
+
+            stock_lbl = Label(
+                text=f"{p['quantity']}",
+                font_size=18,
+                bold=True,
+                halign="center",
+                valign="middle"
+            )
+            stock_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", inst.size))
 
             stock_box.add_widget(stock_lbl)
 
