@@ -1,3 +1,4 @@
+
 from kivy.app import App
 from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
 from kivy.uix.boxlayout import BoxLayout
@@ -182,32 +183,6 @@ class ProductListScreen(Screen):
             on_release=lambda x: setattr(x, "text", "⬆️")
         )
 
-        # 🟢 STOK GİRİŞ
-        stock_in_btn = RoundedButton(
-            text="⬇️",
-            bg_color=(0.18, 0.55, 0.18, 1),
-            size_hint_x=None,
-            width=44
-        )
-
-        stock_in_btn.bind(
-            on_press=lambda x: setattr(x, "text", "⬇️ Giriş"),
-            on_release=lambda x: setattr(x, "text", "⬇️")
-        )
-
-        # 🔴 STOK ÇIKIŞ
-        stock_out_btn = RoundedButton(
-            text="⬆️",
-            bg_color=(0.75, 0.15, 0.15, 1),
-            size_hint_x=None,
-            width=44
-        )
-
-        stock_out_btn.bind(
-            on_press=lambda x: setattr(x, "text", "⬆️ Çıkış"),
-            on_release=lambda x: setattr(x, "text", "⬆️")
-        )
-
         # 📦 LAYOUT'A EKLEME
         top_bar.add_widget(menu_btn)
         top_bar.add_widget(sort_btn)
@@ -261,6 +236,10 @@ class ProductListScreen(Screen):
 
         self.add_widget(root)
 
+    def open_add_product(self):
+        self.manager.current = "add"
+
+
     # ===============================
     # 🔁 LIFECYCLE
     # ===============================
@@ -271,102 +250,15 @@ class ProductListScreen(Screen):
         self.layout.clear_widgets()
         products = db.get_products(self.search.text.strip() or None)
 
+
+        from ui.product_card import ProductCard
+
         for p in products:
-            card = BoxLayout(
-                orientation="horizontal",
-                padding=14,
-                spacing=10,
-                size_hint_y=None,
-                height=76
+            card = ProductCard(
+                product=p,
+                on_open=self.open_product
             )
-
-            card.canvas.before.clear()
-
-            with card.canvas.before:
-                Color(0.16, 0.16, 0.16, 1)
-                bg = RoundedRectangle(
-                    radius=[16],
-                    pos=card.pos,
-                    size=card.size
-                )
-
-            card.bind(
-                pos=lambda inst, val: setattr(bg, "pos", inst.pos),
-                size=lambda inst, val: setattr(bg, "size", inst.size)
-            )
-
-            # 📦 SOL: isim + kod
-            left = BoxLayout(orientation="vertical", spacing=4)
-
-            name_lbl = Label(
-                text=p["name"],
-                font_size=16,
-                bold=True,
-                halign="left",
-                valign="middle",
-                size_hint_y=None,
-                height=26
-            )
-            name_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", inst.size))
-
-            code_lbl = Label(
-                text=f"Kod: {p['code']}",
-                font_size=12,
-                color=(0.7, 0.7, 0.7, 1),
-                halign="left",
-                valign="middle",
-                size_hint_y=None,
-                height=18
-            )
-            code_lbl.bind(size=lambda inst, val: setattr(inst, "text_size", inst.size))
-
-            left.add_widget(name_lbl)
-            left.add_widget(code_lbl)
-
-            # 📊 SAĞ: stok badge
-            stock_box = BoxLayout(
-                size_hint_x=None,
-                width=90,
-                padding=6
-            )
-
-            stock_lbl = Label(
-                text=f"{p['quantity']}",
-                size_hint=(None, None),
-                size=(56, 32),
-                font_size=16,
-                bold=True,
-                halign="center",
-                valign="middle",
-                color=(1, 1, 1, 1)
-            )
-            stock_lbl.bind(size=stock_lbl.setter("text_size"))
-
-            with stock_lbl.canvas.before:
-                Color(0.22, 0.22, 0.22, 1)
-                badge_bg = RoundedRectangle(
-                    radius=[16],
-                    pos=stock_lbl.pos,
-                    size=stock_lbl.size
-                )
-
-            stock_lbl.bind(
-                pos=lambda i, v: setattr(badge_bg, "pos", i.pos),
-                size=lambda i, v: setattr(badge_bg, "size", i.size)
-            )
-
-            stock_box.add_widget(stock_lbl)
-
-            card.add_widget(left)
-            card.add_widget(stock_box)
-
-            card.bind(
-                on_touch_down=lambda inst, touch, pid=p["id"]:
-                    self.on_card_touch(inst, touch, pid)
-            )
-
             self.layout.add_widget(card)
-
     # ===============================
     # 👆 CARD TOUCH
     # ===============================
@@ -607,6 +499,79 @@ class AddProductScreen(Screen):
         self.note.text = product["note"] or ""
 
     # ===============================
+    # 🗑️ SİL ONAY
+    # ===============================
+    def confirm_delete(self, instance):
+        from kivy.uix.popup import Popup
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.label import Label
+        from kivy.uix.button import Button
+
+        box = BoxLayout(orientation="vertical", spacing=10, padding=10)
+        box.add_widget(Label(
+            text="Bu ürünü silmek istiyor musunuz?\nBu işlem geri alınamaz.",
+            halign="center"
+        ))
+
+        btns = BoxLayout(size_hint_y=None, height=40, spacing=10)
+
+        cancel = Button(text="İptal")
+        delete = Button(
+            text="Sil",
+            background_normal="",
+            background_color=(0.8, 0, 0, 1)
+        )
+
+        btns.add_widget(cancel)
+        btns.add_widget(delete)
+        box.add_widget(btns)
+
+        popup = Popup(
+            title="Onay",
+            content=box,
+            size_hint=(0.8, None),
+            height=220
+        )
+
+        cancel.bind(on_release=popup.dismiss)
+
+        def on_confirm(x):
+            popup.dismiss()
+            self.perform_delete()
+
+        delete.bind(on_release=on_confirm)
+
+        popup.open()
+
+
+    # ===============================
+    # 🗑️ GERÇEK SİLME
+    # ===============================
+    def perform_delete(self):
+        from kivy.uix.popup import Popup
+        from kivy.uix.label import Label
+
+        try:
+            db.delete_product(self.edit_product_id)
+
+            self.edit_mode = False
+            self.edit_product_id = None
+
+            list_screen = self.manager.get_screen("list")
+            list_screen.refresh()
+
+            self.manager.current = "list"
+
+        except Exception as e:
+            Popup(
+                title="Ürün Silinemedi",
+                content=Label(text=str(e)),
+                size_hint=(0.8, None),
+                height=180
+            ).open()
+
+
+    # ===============================
     # 🔁 SCREEN AÇILIRKEN
     # ===============================
     def on_pre_enter(self):
@@ -734,7 +699,13 @@ class AddProductScreen(Screen):
         )
 
         cancel.bind(on_release=popup.dismiss)
-        delete.bind(on_release=lambda x: self.delete_and_exit(popup))
+
+        def on_confirm(x):
+            popup.dismiss()
+            self.perform_delete()
+
+        delete.bind(on_release=on_confirm)
+
         popup.open()
 
 
@@ -742,16 +713,47 @@ class AddProductScreen(Screen):
     # 🗑️ SİL VE ÇIK
     # ===============================
     def delete_and_exit(self, popup):
+        from kivy.uix.popup import Popup
+        from kivy.uix.label import Label
+
+        # 🔑 ÖNCE FORMDAKİ SON HALİ DB'YE YAZ (quantity senkronu)
+        if self.edit_mode:
+            try:
+                db.update_product(
+                    product_id=self.edit_product_id,
+                    code=self.code.text.strip(),
+                    name=self.product_name.text.strip(),
+                    category=self.category.text.strip(),
+                    quantity=int(self.quantity.text.strip() or 0),
+                    note=self.note.text.strip()
+                )
+            except Exception:
+                pass  # burada popup göstermiyoruz, silme aşaması karar verecek
+
         try:
             db.delete_product(self.edit_product_id)
+
             popup.dismiss()
             self.edit_mode = False
             self.edit_product_id = None
-            self.manager.current = "list"
-        except Exception:
-            popup.dismiss()
-            return
 
+            # 🔄 Listeyi zorla tazele
+            list_screen = self.manager.get_screen("list")
+            list_screen.refresh()
+
+            self.manager.current = "list"
+
+        except Exception as e:
+            popup.dismiss()
+
+            Popup(
+                title="Ürün Silinemedi",
+                content=Label(
+                    text=str(e) if str(e) else "Bu ürün silinemedi."
+                ),
+                size_hint=(0.8, None),
+                height=180
+            ).open()
 
         # -------------------------------
         # 🛑 ZORUNLU ALANLAR (MVP: sessiz)

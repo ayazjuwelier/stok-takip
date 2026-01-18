@@ -50,8 +50,11 @@ def get_setting(key, default=None):
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return conn
 
+    # 🔴 MVP: foreign key engelini kapat
+    conn.execute("PRAGMA foreign_keys = OFF")
+
+    return conn
 
 def init_db():
     conn = get_connection()
@@ -185,29 +188,33 @@ def get_product(product_id):
 
 def delete_product(product_id):
     conn = get_connection()
-    try:
-        cur = conn.cursor()
+    cur = conn.cursor()
 
-        # Stok hareketi var mı kontrol et
-        cur.execute(
-            "SELECT COUNT(*) FROM stock_movements WHERE product_id=?",
-            (product_id,)
-        )
-        if cur.fetchone()[0] > 0:
-            raise ValueError("Stok hareketi olan ürün silinemez")
+    cur.execute(
+        "SELECT quantity FROM products WHERE id=?",
+        (product_id,)
+    )
+    row = cur.fetchone()
 
-        # Ürünü sil
-        cur.execute(
-            "DELETE FROM products WHERE id=?",
-            (product_id,)
-        )
-
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
+    if not row:
         conn.close()
+        raise ValueError("Ürün bulunamadı")
+
+    if row["quantity"] > 0:
+        conn.close()
+        raise ValueError("Stokta ürün varken silinemez")
+
+    cur.execute(
+        "DELETE FROM products WHERE id=?",
+        (product_id,)
+    )
+
+    if cur.rowcount == 0:
+        conn.close()
+        raise ValueError("Ürün silinemedi (DB engelledi)")
+
+    conn.commit()
+    conn.close()
 
 def update_product(product_id, code, name, category, quantity, note):
     conn = get_connection()
@@ -343,29 +350,6 @@ def get_movements(product_id, order="DESC"):
     conn.close()
     return rows
 
-
-
-def delete_product(product_id):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute(
-        "SELECT COUNT(*) FROM stock_movements WHERE product_id=?",
-        (product_id,)
-    )
-    count = cur.fetchone()[0]
-
-    if count > 0:
-        conn.close()
-        raise ValueError("Stok hareketi olan ürün silinemez")
-
-    cur.execute(
-        "DELETE FROM products WHERE id=?",
-        (product_id,)
-    )
-
-    conn.commit()
-    conn.close()
 
 
 # -------------------- QUICK TEST --------------------
