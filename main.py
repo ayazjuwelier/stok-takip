@@ -92,6 +92,8 @@ class ProductListScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        self.selected_product_id = None
+
         root = BoxLayout(
             orientation="vertical",
             padding=8,
@@ -167,7 +169,10 @@ class ProductListScreen(Screen):
 
         stock_in_btn.bind(
             on_press=lambda x: setattr(x, "text", "⬇️ Giriş"),
-            on_release=lambda x: setattr(x, "text", "⬇️")
+            on_release=lambda x: (
+                setattr(x, "text", "⬇️"),
+                self.do_stock_in()
+            )
         )
 
         # 🔴 STOK ÇIKIŞ
@@ -180,8 +185,12 @@ class ProductListScreen(Screen):
 
         stock_out_btn.bind(
             on_press=lambda x: setattr(x, "text", "⬆️ Çıkış"),
-            on_release=lambda x: setattr(x, "text", "⬆️")
+            on_release=lambda x: (
+                setattr(x, "text", "⬆️"),
+                self.do_stock_out()
+            )
         )
+
 
         # 📦 LAYOUT'A EKLEME
         top_bar.add_widget(menu_btn)
@@ -264,16 +273,133 @@ class ProductListScreen(Screen):
     # ===============================
     def on_card_touch(self, inst, touch, product_id):
         if inst.collide_point(*touch.pos):
+            self.selected_product_id = product_id  # ✅ BURASI
             self.open_product(product_id)
             return True
         return False
 
     def open_product(self, product_id):
+        # ✅ SEÇİLİ ÜRÜN BURADA SET EDİLİR
+        self.selected_product_id = product_id
+
         detail = self.manager.get_screen("detail")
         detail.load_product(product_id)
         self.manager.current = "detail"
 
+    # ===============================
+    # ⬇️⬆️ STOK POPUP YARDIMCI
+    # ===============================
+    def ask_amount(self, title, on_confirm):
+        from kivy.uix.popup import Popup
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.textinput import TextInput
+        from kivy.uix.button import Button
+        from kivy.uix.label import Label
 
+        box = BoxLayout(orientation="vertical", spacing=10, padding=10)
+
+        info = Label(text="Adet girin", size_hint_y=None, height=30)
+
+        amount = TextInput(
+            input_filter="int",
+            multiline=False,
+            hint_text="0"
+        )
+
+        btns = BoxLayout(size_hint_y=None, height=40, spacing=10)
+
+        cancel = Button(text="İptal")
+        ok = Button(text="Onayla")
+
+        btns.add_widget(cancel)
+        btns.add_widget(ok)
+
+        box.add_widget(info)
+        box.add_widget(amount)
+        box.add_widget(btns)
+
+        popup = Popup(
+            title=title,
+            content=box,
+            size_hint=(0.8, None),
+            height=220
+        )
+
+        cancel.bind(on_release=popup.dismiss)
+
+        def _ok(instance):
+            try:
+                qty = int(amount.text)
+                if qty <= 0:
+                    return
+                popup.dismiss()
+                on_confirm(qty)
+            except ValueError:
+                pass
+
+        ok.bind(on_release=_ok)
+        popup.open()
+
+
+    # ===============================
+    # ⬇️ STOK GİRİŞ
+    # ===============================
+    def do_stock_in(self):
+        if not self.selected_product_id:
+            return
+        self.ask_amount(
+            "Stok Giriş",
+            lambda qty: self._apply_stock("IN", qty)
+        )
+
+    # ===============================
+    # ⬆️ STOK ÇIKIŞ
+    # ===============================
+    def do_stock_out(self):
+        if not self.selected_product_id:
+            return
+        self.ask_amount(
+            "Stok Çıkış",
+            lambda qty: self._apply_stock("OUT", qty)
+        )
+
+    # ===============================
+    # ⬇️ STOK GİRİŞ RELEASE
+    # ===============================
+    def on_stock_in_release(self, btn):
+        btn.text = "⬇️"
+        self.do_stock_in()
+
+
+    # ===============================
+    # ⬆️ STOK ÇIKIŞ RELEASE
+    # ===============================
+    def on_stock_out_release(self, btn):
+        btn.text = "⬆️"
+        self.do_stock_out()
+
+
+    # ===============================
+    # 🔄 DB UYGULAMA
+    # ===============================
+    def _apply_stock(self, mtype, qty):
+        from kivy.uix.popup import Popup
+        from kivy.uix.label import Label
+        try:
+            if mtype == "IN":
+                db.stock_in(self.selected_product_id, qty)
+            else:
+                db.stock_out(self.selected_product_id, qty)
+
+            self.refresh()
+
+        except Exception as e:
+            Popup(
+                title="Hata",
+                content=Label(text=str(e)),
+                size_hint=(0.8, None),
+                height=180
+            ).open()
 
 
     # ===============================
